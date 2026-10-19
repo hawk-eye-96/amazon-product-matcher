@@ -1,4 +1,6 @@
 import asyncio
+import os
+from urllib.parse import urlencode
 
 import httpx
 from fastapi import FastAPI
@@ -23,6 +25,18 @@ PROBES = {
                    "?rawQuery=nike%20shoes&rows=5&o=0", "nike"),
 }
 
+# Sites that block datacenter IPs go through ScraperAPI (residential IPs, India).
+# render=true runs a real browser: Croma fills results with JS. Costs 10 credits vs 1.
+PROXIED = {"croma": True, "myntra": False}
+
+
+def via_proxy(url, render):
+    q = {"api_key": os.environ["SCRAPER_API_KEY"], "url": url, "country_code": "in"}
+    if render:
+        q["render"] = "true"
+    return "https://api.scraperapi.com/?" + urlencode(q)
+
+
 # Myntra's gateway API wants the session cookies its homepage sets.
 MYNTRA_API_HEADERS = {"Accept": "application/json", "x-meta-app": "channel=web",
                       "x-myntraweb": "Yes", "Referer": "https://www.myntra.com/nike-shoes"}
@@ -33,6 +47,8 @@ async def probe(client, name, url, marker):
         if name == "myntra_api":
             await client.get("https://www.myntra.com/")
             r = await client.get(url, headers=MYNTRA_API_HEADERS)
+        elif name in PROXIED and os.environ.get("SCRAPER_API_KEY"):
+            r = await client.get(via_proxy(url, PROXIED[name]), timeout=70)
         else:
             r = await client.get(url)
         ok = r.status_code < 400 and marker in r.text.lower()
