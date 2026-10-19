@@ -11,22 +11,20 @@ HEADERS = {
     "Accept-Language": "en-IN,en;q=0.9",
 }
 
+# (url, text that only appears when real results come back)
 PROBES = {
-    "amazon": "https://www.amazon.in/s?k=samsung+galaxy+s24",
-    "flipkart": "https://www.flipkart.com/search?q=samsung+galaxy+s24",
-    "croma": "https://www.croma.com/searchB?q=samsung%20galaxy%20s24",
-    "myntra": "https://www.myntra.com/nike-shoes",
+    "amazon": ("https://www.amazon.in/s?k=samsung+galaxy+s24", "galaxy s24"),
+    "flipkart": ("https://www.flipkart.com/search?q=samsung+galaxy+s24", "galaxy s24"),
+    "croma": ("https://www.croma.com/searchB?q=samsung%20galaxy%20s24", "galaxy s24"),
+    "myntra": ("https://www.myntra.com/nike-shoes", "nike"),
 }
 
-BLOCK_SIGNS = ("captcha", "robot check", "access denied", "are you a human")
 
-
-async def probe(client, name, url):
+async def probe(client, name, url, marker):
     try:
         r = await client.get(url)
-        body = r.text.lower()
-        blocked = r.status_code >= 400 or any(s in body for s in BLOCK_SIGNS)
-        return name, {"status": r.status_code, "bytes": len(r.text), "blocked": blocked}
+        ok = r.status_code < 400 and marker in r.text.lower()
+        return name, {"status": r.status_code, "bytes": len(r.text), "got_results": ok}
     except Exception as e:
         return name, {"error": repr(e)}
 
@@ -34,7 +32,7 @@ async def probe(client, name, url):
 @app.get("/probe")
 async def probe_all():
     async with httpx.AsyncClient(headers=HEADERS, follow_redirects=True, timeout=15) as c:
-        return dict(await asyncio.gather(*(probe(c, n, u) for n, u in PROBES.items())))
+        return dict(await asyncio.gather(*(probe(c, n, *p) for n, p in PROBES.items())))
 
 
 @app.get("/")
