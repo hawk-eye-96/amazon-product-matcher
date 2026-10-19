@@ -65,7 +65,7 @@ async def debug(pid: str = "303832"):
         try:
             rendered = (await sites.get(c, url, {"render": "true"})).text
             low = rendered.lower()
-            buttons = re.findall(r'<button[^>]*>(?:Buy Now|Add to Cart|Notify Me|Out of Stock)[^<]*</button>', rendered)[:4]
+            buttons = [rendered[max(0, m.start() - 250): m.start() + 60] for m in re.finditer(r"buy now|add to cart|notify|out of stock|sold out", low)][:6]
             r = {"bytes": len(rendered), "buttons": buttons,
                  "words": {w: low.count(w) for w in ["out of stock", "notify me", "currently unavailable", "disablebuynow", "disablecartbtn"]}}
         except Exception as e:
