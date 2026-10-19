@@ -70,6 +70,28 @@ def colour_family(text):
     return None
 
 
+def colour_set(text):
+    """Every colour family named: 'White/Navy' -> {'white', 'blue'}."""
+    t = (text or "").lower().replace("off white", "offwhite").replace("off-white", "offwhite")
+    return {COLOURS[w] for w in re.findall(r"[a-z]+", t) if w in COLOURS}
+
+
+def same_colour(a, b):
+    """Primary colours equal, or the same two-tone in another order ('Mid Nvy/Wte' vs 'White/Navy').
+    A lone 'White' against 'Navy/White' is still rejected: it may just be the all-white shoe."""
+    fa, fb = colour_family(a), colour_family(b)
+    return bool(fa) and (fa == fb or (len(colour_set(a)) > 1 and colour_set(a) == colour_set(b)))
+
+
+def years(text):
+    """Season/model year: RCB 2025 vs 2026 jersey, 2024 vs 2025 TV. tokens() drops years as noise."""
+    return set(re.findall(r"\b(?:19|20)\d\d\b", text or ""))
+
+
+# Same company, different names on different sites. Each maps to one name.
+BRANDS = {"redmi": "xiaomi", "mi": "xiaomi", "xiaomi": "xiaomi"}
+
+
 def gender(text):
     t = " " + re.sub(r"[^a-z]+", " ", (text or "").lower()) + " "
     for g, words in (("unisex", (" unisex ",)), ("women", (" women ", " womens ", " woman ", " ladies ")),
@@ -114,9 +136,12 @@ def same_model(a, c, threshold):
 
 def score(spec, cand):
     """spec = Amazon product, cand = a listing on another site. Both are dicts from sites.py."""
-    b = norm(spec["brand"])
-    cb = norm(cand.get("brand"))
-    if not (cb and (cb == b or b in cb or cb in b)) and not norm(cand["title"]).startswith(b):
+    b = BRANDS.get(norm(spec["brand"]), norm(spec["brand"]))
+    cb = BRANDS.get(norm(cand.get("brand")), norm(cand.get("brand")))
+    if not (cb and (cb == b or b in cb or cb in b)) and not norm(cand["title"]).startswith(norm(spec["brand"])):
+        return 0
+    y1, y2 = years(spec["title"]), years(cand["title"])
+    if y1 and y2 and not y1 & y2:
         return 0
     cat = spec["category"]
     if cat == "phone":
@@ -128,12 +153,15 @@ def score(spec, cand):
         if not spec["screen"] or not cand.get("screen") or abs(cand["screen"] - spec["screen"]) > 1:
             return 0
     else:
-        if not spec["colour_family"] or cand.get("colour_family") != spec["colour_family"]:
+        if not same_colour(spec.get("colour"), cand.get("colour")):
             return 0
         g1, g2 = spec.get("gender"), cand.get("gender")
         if g1 and g2 and g1 != g2 and "unisex" not in (g1, g2):
             return 0
-    return same_model(spec["tokens"], cand["tokens"], 0.75 if cat in ("phone", "tv") else 0.6)
+    # Brand names inside the model ('Redmi Note 13' when the brand is Xiaomi) aren't model words.
+    alias = {k for k, v in BRANDS.items() if v == b}
+    return same_model([t for t in spec["tokens"] if t not in alias], [t for t in cand["tokens"] if t not in alias],
+                      0.75 if cat in ("phone", "tv") else 0.6)
 
 
 def rank(spec, cands):

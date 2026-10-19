@@ -1,5 +1,5 @@
 """Run: python3 test_match.py  — cases taken from real Amazon/Flipkart/Myntra/Croma listings."""
-from match import colour_family, gb, gender, same_model, score, tokens
+from match import colour_family, gb, gender, same_colour, same_model, score, tokens
 
 
 def phone(title, ram, storage):
@@ -60,12 +60,38 @@ def test_score_filters():
     assert not score(spec, good | {"brand": "Apple", "title": "Apple Galaxy S24"})
     case = {"title": "samsung silicone back cover for galaxy s24", "tokens": ["silicone", "back", "cover", "galaxy", "s24"]}
     assert not score(spec, case)  # Croma accessory: no storage -> rejected
-    shoe = {"category": "sneakers", "brand": "Nike", "tokens": ["court", "royale"], "colour_family": "blue", "gender": "men"}
-    fk = {"brand": "NIKE", "title": "NIKE Court Royale", "tokens": ["court", "royale"], "colour_family": "blue", "gender": "men"}
+    shoe = {"category": "sneakers", "brand": "Nike", "title": "Nike Court Royale", "tokens": ["court", "royale"],
+            "colour": "Mid Nvy/Wte", "gender": "men"}
+    fk = {"brand": "NIKE", "title": "NIKE Court Royale", "tokens": ["court", "royale"], "colour": "Navy Blue", "gender": "men"}
     assert score(shoe, fk)
-    assert not score(shoe, fk | {"colour_family": "white"})
+    assert not score(shoe, fk | {"colour": "White"})
     assert not score(shoe, fk | {"gender": "women"})
     assert score(shoe, fk | {"gender": "unisex"})
+
+    polo = {"category": "tshirt", "brand": "Puma", "title": "Puma Cotton RCB 2026 Men's Striper Polo",
+            "tokens": ["rcb", "striper"], "colour": "Black", "gender": "men"}
+    my = {"brand": "Puma", "title": "Puma x RCB 2026 Men's Striper Polo", "tokens": ["rcb", "striper"],
+          "colour": "Black", "gender": "men"}
+    assert score(polo, my)
+    assert not score(polo, my | {"title": "Puma x RCB 2025 Men's Striper Polo"})
+    assert score(polo, my | {"title": "Puma x RCB Men's Striper Polo"})  # no year on one side: fine
+
+
+def test_two_tone():
+    assert same_colour("Mid Nvy/Wte", "White/Navy")      # same shoe, colours listed the other way round
+    assert same_colour("Navy", "Navy Blue")
+    assert not same_colour("Mid Nvy/Wte", "White")       # could be the all-white shoe
+    assert same_colour("Black/Red", "Black/White")         # primary colour decides, as before
+    assert not same_colour("Red/Black", "Black/White")
+    assert not same_colour(None, "Black")
+
+
+def test_brand_alias():
+    redmi = {"category": "phone", "brand": "Xiaomi", "title": "Redmi Note 13 5G", "tokens": ["redmi", "note", "13"],
+             "ram": 6, "storage": 128}
+    fk = {"brand": "REDMI", "title": "REDMI Note 13 5G", "tokens": ["note", "13"], "ram": 6, "storage": 128}
+    assert score(redmi, fk)
+    assert not score(redmi, fk | {"brand": "Realme", "title": "realme Note 13"})
 
 
 if __name__ == "__main__":
