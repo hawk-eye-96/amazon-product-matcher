@@ -55,13 +55,12 @@ def index():
 
 @app.get("/debug")
 async def debug(pid: str = "303832"):
-    # Temporary: look for stock data inside a Croma product page.
+    # Temporary: list stock-ish fields in Croma's embedded product data.
     import re
     async with httpx.AsyncClient(headers=sites.HEADERS, follow_redirects=True, timeout=25) as c:
         html = (await sites.get(c, f"https://www.croma.com/x/p/{pid}", {})).text
-    low = html.lower()
-    keys = ["stock", "sellable", "inventory", "buyable", "availab", "window.__", "atp", "pincode", "mrp", "sellingprice", "\"price\""]
-    return {"bytes": len(html), "title": (re.search(r"<title>(.*?)</title>", html, re.S) or [0, ""])[1][:120],
-            "counts": {k: low.count(k) for k in keys},
-            "snips": {k: [html[max(0, m.start() - 80): m.start() + 160] for m in re.finditer(re.escape(k), low)][:3]
-                      for k in ["stock", "sellable", "window.__", "mrp", "buy now"]}}
+    i = html.find("window.__INITIAL_DATA__")
+    blob = html[i: html.find("</script>", i)]
+    pdp = blob[: blob.find("pdpPriceReducer")]
+    return {"len": len(blob), "pdp_len": len(pdp),
+            "fields": re.findall(r'"(\w*(?:[Ss]tock|[Aa]vailab|[Ss]ellable|[Bb]uyable|[Ss]tatus|OOS|oos|[Pp]urchas)\w*)"\s*:\s*("[^"]{0,40}"|[\w.]+)', pdp)[:60]}
