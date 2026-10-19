@@ -17,12 +17,24 @@ PROBES = {
     "flipkart": ("https://www.flipkart.com/search?q=samsung+galaxy+s24", "galaxy s24"),
     "croma": ("https://www.croma.com/searchB?q=samsung%20galaxy%20s24", "galaxy s24"),
     "myntra": ("https://www.myntra.com/nike-shoes", "nike"),
+    "croma_api": ("https://api.croma.com/searchservices/v1/search?currentPage=0"
+                  "&query=samsung%20galaxy%20s24&fields=FULL", "galaxy s24"),
+    "myntra_api": ("https://www.myntra.com/gateway/v4/search/nike-shoes"
+                   "?rawQuery=nike%20shoes&rows=5&o=0", "nike"),
 }
+
+# Myntra's gateway API wants the session cookies its homepage sets.
+MYNTRA_API_HEADERS = {"Accept": "application/json", "x-meta-app": "channel=web",
+                      "x-myntraweb": "Yes", "Referer": "https://www.myntra.com/nike-shoes"}
 
 
 async def probe(client, name, url, marker):
     try:
-        r = await client.get(url)
+        if name == "myntra_api":
+            await client.get("https://www.myntra.com/")
+            r = await client.get(url, headers=MYNTRA_API_HEADERS)
+        else:
+            r = await client.get(url)
         ok = r.status_code < 400 and marker in r.text.lower()
         return name, {"status": r.status_code, "bytes": len(r.text), "got_results": ok}
     except Exception as e:
