@@ -34,7 +34,8 @@ PROBES = {
 # Extra params per site: render=true runs a real browser, premium=true uses
 # residential IPs for protected domains. Both cost more credits.
 # croma_api is not proxied: ScraperAPI needs ultra_premium (paid) for it.
-PROXIED = {"croma": {"render": "true", "wait_for_selector": ".product-title"}, "myntra": {}, "croma_product": {}}
+# croma search page: fails even with render + wait_for_selector, so search via DuckDuckGo instead.
+PROXIED = {"myntra": {}, "croma_product": {}, "croma_ddg": {}}
 
 
 
