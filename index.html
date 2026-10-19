@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Same Product Finder</title>
+<style>
+  :root {
+    --bg: #f8f3f6; --card: #ffffff; --ink: #3b1f2f; --muted: #7a5c6c; --line: #e8dbe2;
+    --accent: #5e3048; --in: #1f7a4d; --in-bg: #e5f4ec; --out: #a35c00; --out-bg: #fbefdc;
+    --none: #8a7a83; --err: #b3261e; --err-bg: #fbe9e7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1218; --card: #2a1c24; --ink: #f3e7ee; --muted: #b9a2af; --line: #3d2b35;
+      --accent: #d9a6c2; --in: #6fd3a0; --in-bg: #18352a; --out: #f0b35a; --out-bg: #3a2a14;
+      --none: #a8959f; --err: #f28b82; --err-bg: #3b1d1b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  form { display: flex; gap: 8px; flex-wrap: wrap; }
+  input { flex: 1 1 320px; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+          background: var(--card); color: var(--ink); font-size: 15px; }
+  button { padding: 12px 20px; border: 0; border-radius: 10px; background: var(--accent); color: var(--bg);
+           font-weight: 600; font-size: 15px; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .status { color: var(--muted); margin: 16px 0 0; min-height: 24px; }
+  .product, .result { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-top: 16px; }
+  .product .label { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .product .name { font-weight: 600; margin: 4px 0 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 13px; padding: 2px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .result { margin-top: 0; }
+  .platform { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .state { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; margin: 6px 0; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+  .in_stock { background: var(--in-bg); border-color: var(--in); }
+  .in_stock .state { color: var(--in); } .in_stock .dot { background: var(--in); }
+  .out_of_stock { background: var(--out-bg); border-color: var(--out); }
+  .out_of_stock .state { color: var(--out); } .out_of_stock .dot { background: var(--out); }
+  .not_listed { border-style: dashed; }
+  .not_listed .state { color: var(--none); } .not_listed .dot { border: 2px solid var(--none); }
+  .error { background: var(--err-bg); border-color: var(--err); }
+  .error .state { color: var(--err); } .error .dot { background: var(--err); border-radius: 3px; }
+  .match { font-size: 14px; margin: 4px 0 10px; }
+  .price { font-weight: 600; }
+  a.go { color: var(--accent); font-weight: 600; word-break: break-word; }
+  .fail { color: var(--err); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Find the same product</h1>
+  <p class="sub">Paste an Amazon.in link to a smartphone, TV, sneaker or T-shirt / polo / jersey.</p>
+  <form id="f">
+    <input id="u" type="url" required placeholder="https://www.amazon.in/dp/…" aria-label="Amazon product link">
+    <button id="b">Find</button>
+  </form>
+  <p class="status" id="s" role="status"></p>
+  <div id="out"></div>
+</main>
+<script>
+const LABEL = { in_stock: "In stock", out_of_stock: "Out of stock", not_listed: "Not listed", error: "Couldn't check" };
+const NOTE = {
+  in_stock: "Found the same product, and you can buy it.",
+  out_of_stock: "Found the same product, but it can't be bought right now.",
+  not_listed: "This platform doesn't sell this product.",
+};
+const CAT = { phone: "Smartphone", tv: "Television", sneakers: "Sneakers", tshirt: "T-shirt / polo / jersey" };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const rupees = n => n ? "₹" + Number(n).toLocaleString("en-IN") : "";
+
+document.getElementById("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const b = document.getElementById("b"), s = document.getElementById("s"), out = document.getElementById("out");
+  b.disabled = true; out.innerHTML = "";
+  s.textContent = "Checking the other platforms… this takes 10–30 seconds (up to a minute if the server was asleep).";
+  try {
+    const r = await fetch("/api/compare", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: document.getElementById("u").value }) });
+    const d = await r.json();
+    if (!r.ok) { s.innerHTML = `<span class="fail">${esc(d.error || "Something went wrong.")}</span>`; return; }
+    s.textContent = "";
+    const p = d.product;
+    const chips = [CAT[p.category], p.brand, p.ram && p.ram + " GB RAM", p.storage && p.storage + " GB",
+                   p.screen && p.screen + '"', p.category in { sneakers: 1, tshirt: 1 } && p.colour].filter(Boolean);
+    out.innerHTML = `<div class="product"><div class="label">On Amazon</div>
+        <div class="name">${esc(p.title)}</div>
+        <div class="chips">${chips.map(c => `<span class="chip">${esc(c)}</span>`).join("")}</div></div>
+      <div class="grid" style="margin-top:16px">${d.results.map(card).join("")}</div>`;
+  } catch (err) {
+    s.innerHTML = `<span class="fail">Couldn't reach the server. Try again.</span>`;
+  } finally { b.disabled = false; }
+});
+
+function card(r) {
+  const name = r.platform[0].toUpperCase() + r.platform.slice(1);
+  const body = r.url
+    ? `<div class="match">${esc(r.title)}${r.colour ? " · " + esc(r.colour) : ""} <span class="price">${rupees(r.price)}</span></div>
+       <a class="go" href="${esc(r.url)}" target="_blank" rel="noopener">Open on ${name} →</a>`
+    : `<div class="match">${esc(r.note || NOTE[r.status])}</div>`;
+  return `<div class="result ${r.status}"><div class="platform">${name}</div>
+    <div class="state"><span class="dot"></span>${LABEL[r.status]}</div>${r.url ? `<div class="match">${NOTE[r.status]}</div>` : ""}${body}</div>`;
+}
+</script>
+</body>
+</html>

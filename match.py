@@ -1,0 +1,154 @@
+"""Turn product text into comparable pieces and decide if a listing is the same product."""
+import re
+
+# Colour words -> family. Sites name colours differently ("Onyx Black", "Mid Nvy/Wte", "Navy Blue"),
+# so we compare families, not names.
+COLOURS = {
+    "black": "black", "blk": "black", "onyx": "black", "jet": "black", "jetblack": "black", "graphite": "black",
+    "white": "white", "wht": "white", "wte": "white", "snow": "white", "ivory": "white", "offwhite": "white",
+    "grey": "grey", "gray": "grey", "gry": "grey", "charcoal": "grey", "ash": "grey", "titanium": "grey",
+    "silver": "silver", "metallic": "silver",
+    "blue": "blue", "navy": "blue", "nvy": "blue", "midnight": "blue", "obsidian": "blue", "cobalt": "blue",
+    "teal": "green", "green": "green", "olive": "green", "mint": "green", "sage": "green", "khaki": "green",
+    "red": "red", "maroon": "red", "burgundy": "red", "wine": "red", "crimson": "red", "rosso": "red",
+    "pink": "pink", "rose": "pink", "peach": "pink", "coral": "pink",
+    "purple": "purple", "violet": "purple", "lavender": "purple", "lilac": "purple", "mauve": "purple",
+    "yellow": "yellow", "amber": "yellow", "mustard": "yellow", "lemon": "yellow",
+    "orange": "orange", "rust": "orange",
+    "brown": "brown", "tan": "brown", "chocolate": "brown", "coffee": "brown",
+    "beige": "beige", "cream": "beige", "sand": "beige", "taupe": "beige",
+    "gold": "gold", "golden": "gold",
+    "multicolor": "multi", "multicolour": "multi", "multi": "multi",
+}
+
+# Words that make a different product when present on only one side: S24 vs S24 FE, Court Royale vs Court Royale AC SE.
+VARIANTS = {"pro", "plus", "ultra", "max", "mini", "lite", "fe", "neo", "prime", "se", "ac", "edge", "fold", "flip"}
+
+GENERIC = set("""
+for with and the of in on by to new latest edition series model version
+men mens man women womens woman unisex boys girls kids boy girl adult
+shoe shoes sneaker sneakers casual sports sport running tennis walking lifestyle training trainers
+t shirt shirts tshirt tshirts tee tees polo polos jersey jerseys top
+fit regular slim relaxed oversized cotton polyester leather suede mesh synthetic knit
+round crew neck collar half full short sleeve sleeves solid printed graphic logo
+smart smartphone mobile phone cellphone ai dual sim camera processor battery display amoled storage ram rom
+tv television led qled oled uhd hd hdr android google tizen webos smartvision vision
+inch inches cm star stars built voice assistant remote
+""".split())
+
+PHRASES = re.compile(r"\b(ultra hd|full hd|hd ready|quad hd|4k uhd|hdr ?10\+?|dolby (vision|atmos)|off white)\b")
+UNITS = re.compile(r"\b\d+(?:\.\d+)?\s*(?:gb|tb|mb|cm|mm|inch|inches|in|hz|mah|mp|w|k|g)\b|\b(?:19|20)\d\d\b")
+ALIASES = {"lo": "low", "hi": "high", "+": "plus"}
+
+
+def tokens(text, drop=()):
+    """Model-identifying words, in order: 'Samsung Galaxy S24 5G AI Smartphone' -> ['galaxy', 's24']."""
+    t = text.lower().replace("+", " plus ").replace("'s", " ")
+    t = PHRASES.sub(" ", t)
+    t = re.sub(r"[^a-z0-9.]+", " ", t)
+    t = UNITS.sub(" ", t)
+    out = []
+    for w in t.replace(".", " ").split():
+        w = ALIASES.get(w, w)
+        if w in GENERIC or w in COLOURS or w in drop or w in out:
+            continue
+        if len(w) <= 2 and not w.isdigit() and w not in VARIANTS:
+            continue
+        out.append(w)
+    return out
+
+
+def colour_family(text):
+    """'Mid Nvy/Wte' -> 'blue', 'Cobalt Violet' -> 'purple'. Primary colour = first part, last colour word in it."""
+    if not text:
+        return None
+    t = text.lower().replace("off white", "offwhite").replace("off-white", "offwhite")
+    for part in re.split(r"[/,&+|]| and ", t):
+        for w in reversed(re.findall(r"[a-z]+", part)):
+            if w in COLOURS:
+                return COLOURS[w]
+    return None
+
+
+def gender(text):
+    t = " " + re.sub(r"[^a-z]+", " ", (text or "").lower()) + " "
+    for g, words in (("unisex", (" unisex ",)), ("women", (" women ", " womens ", " woman ", " ladies ")),
+                     ("men", (" men ", " mens ", " man ")), ("kids", (" boys ", " girls ", " kids "))):
+        if any(w in t for w in words):
+            return g
+    return None
+
+
+def gb(value):
+    """'8 GB' -> 8, '1 TB' -> 1024."""
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(gb|tb)", (value or "").lower())
+    if not m:
+        return None
+    n = float(m.group(1))
+    return int(n * 1024 if m.group(2) == "tb" else n)
+
+
+def norm(s):
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def is_code(t):
+    return bool(re.search(r"\d", t)) and bool(re.search(r"[a-z]", t))
+
+
+def same_model(a, c, threshold):
+    """Score how well candidate tokens c match Amazon tokens a. 0 = not the same model."""
+    A, C = set(a), set(c)
+    if not A or (A & VARIANTS) != (C & VARIANTS):
+        return 0
+    if any(t.isdigit() and t not in C for t in A):  # iPhone 15 vs 16, Air Max 90 vs SC
+        return 0
+    codes_a, codes_c = [t for t in A if is_code(t)], [t for t in C if is_code(t)]
+    if codes_a and codes_c:
+        # UA55U8400FULXL on Amazon vs u8400f in a Croma URL: one contains the other.
+        hit = any(x == y or (min(len(x), len(y)) >= 4 and (x in y or y in x)) for x in codes_a for y in codes_c)
+        return 1 + len(A & C) / len(A | C) if hit else 0
+    recall = len(A & C) / len(A)
+    return recall if recall >= threshold else 0
+
+
+def score(spec, cand):
+    """spec = Amazon product, cand = a listing on another site. Both are dicts from sites.py."""
+    b = norm(spec["brand"])
+    cb = norm(cand.get("brand"))
+    if not (cb and (cb == b or b in cb or cb in b)) and not norm(cand["title"]).startswith(b):
+        return 0
+    cat = spec["category"]
+    if cat == "phone":
+        if not spec["storage"] or cand.get("storage") != spec["storage"]:
+            return 0
+        if spec["ram"] and cand.get("ram") and cand["ram"] != spec["ram"]:
+            return 0
+    elif cat == "tv":
+        if not spec["screen"] or not cand.get("screen") or abs(cand["screen"] - spec["screen"]) > 1:
+            return 0
+    else:
+        if not spec["colour_family"] or cand.get("colour_family") != spec["colour_family"]:
+            return 0
+        g1, g2 = spec.get("gender"), cand.get("gender")
+        if g1 and g2 and g1 != g2 and "unisex" not in (g1, g2):
+            return 0
+    return same_model(spec["tokens"], cand["tokens"], 0.75 if cat in ("phone", "tv") else 0.6)
+
+
+def rank(spec, cands):
+    """Candidates that are the same product, best first."""
+    # Same colour first as a tie-break (phones/TVs don't require it, but it's the nicer link).
+    scored = [(s + 0.01 * (c.get("colour_family") == spec["colour_family"]), c)
+              for c in cands for s in [score(spec, c)] if s > 0]
+    return [c for _, c in sorted(scored, key=lambda x: -x[0])]
+
+
+def decide(hits):
+    """hits = ranked matches with 'stock' set. Prefer a buyable one."""
+    if not hits:
+        return "not_listed", None
+    for c in hits:
+        if c.get("stock") == "in":
+            return "in_stock", c
+    return "out_of_stock", hits[0]

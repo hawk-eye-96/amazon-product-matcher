@@ -1,107 +1,53 @@
 import asyncio
-import gzip
-import os
-import re
-from urllib.parse import urlencode
+import time
 
 import httpx
 from fastapi import FastAPI
+from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel
+
+import sites
 
 app = FastAPI()
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
-    "Accept-Language": "en-IN,en;q=0.9",
-}
-
-# (url, text that only appears when real results come back)
-PROBES = {
-    "amazon": ("https://www.amazon.in/s?k=samsung+galaxy+s24", "galaxy s24"),
-    "flipkart": ("https://www.flipkart.com/search?q=samsung+galaxy+s24", "galaxy s24"),
-    "croma": ("https://www.croma.com/searchB?q=samsung%20galaxy%20s24", "galaxy s24"),
-    "myntra": ("https://www.myntra.com/nike-shoes", "nike"),
-    "croma_api": ("https://api.croma.com/searchservices/v1/search?currentPage=0"
-                  "&query=samsung%20galaxy%20s24&fields=FULL", "galaxy s24"),
-    "croma_ddg": ("https://html.duckduckgo.com/html/?q=site%3Acroma.com+samsung+galaxy+s24",
-                  "croma.com/"),
-    "croma_product": ("https://www.croma.com/samsung-galaxy-s24-5g-8gb-ram-256gb-cobalt-violet-/p/303851",
-                      "galaxy s24"),
-    "myntra_api": ("https://www.myntra.com/gateway/v4/search/nike-shoes"
-                   "?rawQuery=nike%20shoes&rows=5&o=0", "nike"),
-}
-
-# Sites that block datacenter IPs go through ScraperAPI (residential IPs, India).
-# Extra params per site: render=true runs a real browser, premium=true uses
-# residential IPs for protected domains. Both cost more credits.
-# croma_api is not proxied: ScraperAPI needs ultra_premium (paid) for it.
-# croma search page: fails even with render + wait_for_selector, so search via DuckDuckGo instead.
-PROXIED = {"myntra": {}, "croma_product": {}, "croma_ddg": {}}
+CACHE_TTL = 30 * 60
+_cache = {}  # amazon url -> (time, response)  ponytail: in-memory, lost on restart; fine for a demo
 
 
-
-# ponytail: free ScraperAPI plan allows 1 concurrent request; raise if plan upgrades.
-PROXY_SLOT = asyncio.Semaphore(1)
-
-
-def via_proxy(url, extra):
-    q = {"api_key": os.environ["SCRAPER_API_KEY"], "url": url, "country_code": "in", **extra}
-    return "https://api.scraperapi.com/?" + urlencode(q)
+class Ask(BaseModel):
+    url: str
 
 
-# Myntra's gateway API wants the session cookies its homepage sets.
-MYNTRA_API_HEADERS = {"Accept": "application/json", "x-meta-app": "channel=web",
-                      "x-myntraweb": "Yes", "Referer": "https://www.myntra.com/nike-shoes"}
-
-
-async def probe(client, name, url, marker):
+async def check(client, platform, spec):
     try:
-        if name == "myntra_api":
-            await client.get("https://www.myntra.com/")
-            r = await client.get(url, headers=MYNTRA_API_HEADERS)
-        elif name in PROXIED and os.environ.get("SCRAPER_API_KEY"):
-            async with PROXY_SLOT:
-                r = await client.get(via_proxy(url, PROXIED[name]), timeout=70)
-        else:
-            r = await client.get(url)
-        ok = r.status_code < 400 and marker in r.text.lower()
-        out = {"status": r.status_code, "bytes": len(r.text), "got_results": ok}
-        if name.startswith("croma"):
-            t = re.search(r"<title>(.*?)</title>", r.text, re.S)
-            out["title"] = t and t.group(1).strip()[:100]
-            out["has_jsonld"] = "application/ld+json" in r.text
-            out["croma_links"] = sorted(set(re.findall(r"croma\.com/[\w-]+/p/\d+", r.text)))[:5]
-        if r.status_code >= 400:
-            out["body"] = r.text[:200]
-        return name, out
-    except Exception as e:
-        return name, {"error": repr(e)}
+        status, hit = await sites.ADAPTERS[platform](client, spec)
+    except Exception as e:  # a blocked/broken site must not look like "not listed"
+        return {"platform": platform, "status": "error", "note": f"Couldn't check right now ({type(e).__name__})."}
+    out = {"platform": platform, "status": status}
+    if hit:
+        out.update(title=hit["title"], url=hit["url"], price=hit.get("price"), colour=hit.get("colour"))
+    return out
 
 
-@app.get("/probe")
-async def probe_all():
-    async with httpx.AsyncClient(headers=HEADERS, follow_redirects=True, timeout=15) as c:
-        return dict(await asyncio.gather(*(probe(c, n, *p) for n, p in PROBES.items())))
+@app.post("/api/compare")
+async def compare(ask: Ask):
+    url = ask.url.strip()
+    if url in _cache and time.time() - _cache[url][0] < CACHE_TTL:
+        return _cache[url][1]
+    async with httpx.AsyncClient(headers=sites.HEADERS, follow_redirects=True, timeout=25) as client:
+        try:
+            spec = await sites.amazon(client, url)
+        except sites.NotSupported as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        except httpx.HTTPError as e:
+            return JSONResponse({"error": f"Couldn't load the Amazon page ({type(e).__name__})."}, status_code=502)
+        results = await asyncio.gather(*(check(client, p, spec) for p in sites.PLATFORMS[spec["category"]]))
+    product = {k: spec[k] for k in ("title", "category", "brand", "ram", "storage", "screen", "colour", "url")}
+    resp = {"product": product, "results": results}
+    if all(r["status"] != "error" for r in results):
+        _cache[url] = (time.time(), resp)
+    return resp
 
 
 @app.get("/")
-def root():
-    return {"ok": True, "try": "/probe", "scraper_key_set": bool(os.environ.get("SCRAPER_API_KEY"))}
-
-
-@app.get("/croma_file")
-async def croma_file(path: str = "robots.txt"):
-    # Temporary: fetch a croma.com file through the proxy. Host is fixed so it can't burn credits elsewhere.
-    url = "https://www.croma.com/" + path.lstrip("/")
-    async with httpx.AsyncClient(timeout=70) as c:
-        async with PROXY_SLOT:
-            r = await c.get(via_proxy(url, {}))
-    body = r.content
-    if body[:2] == b"\x1f\x8b":
-        body = gzip.decompress(body)
-    text = body.decode("utf-8", "replace")
-    products = re.findall(r"<loc>([^<]*/p/\d+)</loc>", text)
-    return {"status": r.status_code, "bytes": len(body), "products": len(products),
-            "s24": [p for p in products if "galaxy-s24" in p][:10],
-            "sample": products[:5], "locs": re.findall(r"<loc>([^<]*)</loc>", text)[:300],
-            "head": text[:600]}
+def index():
+    return FileResponse("index.html")
