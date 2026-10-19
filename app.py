@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 from urllib.parse import urlencode
 
 import httpx
@@ -21,6 +22,10 @@ PROBES = {
     "myntra": ("https://www.myntra.com/nike-shoes", "nike"),
     "croma_api": ("https://api.croma.com/searchservices/v1/search?currentPage=0"
                   "&query=samsung%20galaxy%20s24&fields=FULL", "galaxy s24"),
+    "croma_ddg": ("https://html.duckduckgo.com/html/?q=site%3Acroma.com+samsung+galaxy+s24",
+                  "croma.com/"),
+    "croma_product": ("https://www.croma.com/samsung-galaxy-s24-5g-8gb-ram-256gb-cobalt-violet-/p/303851",
+                      "galaxy s24"),
     "myntra_api": ("https://www.myntra.com/gateway/v4/search/nike-shoes"
                    "?rawQuery=nike%20shoes&rows=5&o=0", "nike"),
 }
@@ -29,7 +34,7 @@ PROBES = {
 # Extra params per site: render=true runs a real browser, premium=true uses
 # residential IPs for protected domains. Both cost more credits.
 # croma_api is not proxied: ScraperAPI needs ultra_premium (paid) for it.
-PROXIED = {"croma": {"render": "true"}, "myntra": {}}
+PROXIED = {"croma": {"render": "true", "wait_for_selector": ".product-title"}, "myntra": {}, "croma_product": {}}
 
 
 
@@ -59,6 +64,11 @@ async def probe(client, name, url, marker):
             r = await client.get(url)
         ok = r.status_code < 400 and marker in r.text.lower()
         out = {"status": r.status_code, "bytes": len(r.text), "got_results": ok}
+        if name.startswith("croma"):
+            t = re.search(r"<title>(.*?)</title>", r.text, re.S)
+            out["title"] = t and t.group(1).strip()[:100]
+            out["has_jsonld"] = "application/ld+json" in r.text
+            out["croma_links"] = sorted(set(re.findall(r"croma\.com/[\w-]+/p/\d+", r.text)))[:5]
         if r.status_code >= 400:
             out["body"] = r.text[:200]
         return name, out
