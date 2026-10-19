@@ -26,14 +26,13 @@ PROBES = {
 }
 
 # Sites that block datacenter IPs go through ScraperAPI (residential IPs, India).
-# render=true runs a real browser: Croma fills results with JS. Costs 10 credits vs 1.
-PROXIED = {"croma": True, "myntra": False, "croma_api": False}
+# Extra params per site: render=true runs a real browser, premium=true uses
+# residential IPs for protected domains. Both cost more credits.
+PROXIED = {"croma": {"render": "true"}, "myntra": {}, "croma_api": {"premium": "true"}}
 
 
-def via_proxy(url, render):
-    q = {"api_key": os.environ["SCRAPER_API_KEY"], "url": url, "country_code": "in"}
-    if render:
-        q["render"] = "true"
+def via_proxy(url, extra):
+    q = {"api_key": os.environ["SCRAPER_API_KEY"], "url": url, "country_code": "in", **extra}
     return "https://api.scraperapi.com/?" + urlencode(q)
 
 
