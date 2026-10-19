@@ -1,4 +1,5 @@
 import asyncio
+import gzip
 import os
 import re
 from urllib.parse import urlencode
@@ -95,4 +96,11 @@ async def croma_file(path: str = "robots.txt"):
     async with httpx.AsyncClient(timeout=70) as c:
         async with PROXY_SLOT:
             r = await c.get(via_proxy(url, {}))
-    return {"status": r.status_code, "bytes": len(r.content), "head": r.text[:3000]}
+    body = r.content
+    if body[:2] == b"\x1f\x8b":
+        body = gzip.decompress(body)
+    text = body.decode("utf-8", "replace")
+    products = re.findall(r"<loc>([^<]*/p/\d+)</loc>", text)
+    return {"status": r.status_code, "bytes": len(body), "products": len(products),
+            "s24": [p for p in products if "galaxy-s24" in p][:10],
+            "sample": products[:5], "head": text[:600]}
