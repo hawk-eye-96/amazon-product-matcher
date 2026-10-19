@@ -27,7 +27,7 @@ PROBES = {
 
 # Sites that block datacenter IPs go through ScraperAPI (residential IPs, India).
 # render=true runs a real browser: Croma fills results with JS. Costs 10 credits vs 1.
-PROXIED = {"croma": True, "myntra": False}
+PROXIED = {"croma": True, "myntra": False, "croma_api": False}
 
 
 def via_proxy(url, render):
@@ -52,7 +52,10 @@ async def probe(client, name, url, marker):
         else:
             r = await client.get(url)
         ok = r.status_code < 400 and marker in r.text.lower()
-        return name, {"status": r.status_code, "bytes": len(r.text), "got_results": ok}
+        out = {"status": r.status_code, "bytes": len(r.text), "got_results": ok}
+        if r.status_code >= 400:
+            out["body"] = r.text[:200]
+        return name, out
     except Exception as e:
         return name, {"error": repr(e)}
 
