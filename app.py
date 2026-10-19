@@ -65,4 +65,4 @@ async def probe_all():
 
 @app.get("/")
 def root():
-    return {"ok": True, "try": "/probe"}
+    return {"ok": True, "try": "/probe", "scraper_key_set": bool(os.environ.get("SCRAPER_API_KEY"))}
