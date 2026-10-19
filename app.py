@@ -86,3 +86,13 @@ async def probe_all():
 @app.get("/")
 def root():
     return {"ok": True, "try": "/probe", "scraper_key_set": bool(os.environ.get("SCRAPER_API_KEY"))}
+
+
+@app.get("/croma_file")
+async def croma_file(path: str = "robots.txt"):
+    # Temporary: fetch a croma.com file through the proxy. Host is fixed so it can't burn credits elsewhere.
+    url = "https://www.croma.com/" + path.lstrip("/")
+    async with httpx.AsyncClient(timeout=70) as c:
+        async with PROXY_SLOT:
+            r = await c.get(via_proxy(url, {}))
+    return {"status": r.status_code, "bytes": len(r.content), "head": r.text[:3000]}
