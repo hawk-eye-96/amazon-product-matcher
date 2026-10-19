@@ -54,18 +54,14 @@ def index():
 
 
 @app.get("/debug")
-async def debug():
-    # Temporary: what Render sees on a Flipkart product page and a Croma product page.
-    out = {}
+async def debug(pid: str = "303832"):
+    # Temporary: look for stock data inside a Croma product page.
+    import re
     async with httpx.AsyncClient(headers=sites.HEADERS, follow_redirects=True, timeout=25) as c:
-        r = await c.get("https://www.flipkart.com/nike-court-royale-tennis-shoes-men/p/itmf3xwjxnwwbqpk?pid=SHOHMSQJXCFPGFQF")
-        out["flipkart_page"] = {"status": r.status_code, "bytes": len(r.text)}
-        html = (await sites.get(c, "https://www.croma.com/samsung-galaxy-s24-5g-8gb-ram-128gb-cobalt-violet-/p/303832", {})).text
-        low = html.lower()
-        out["croma"] = {
-            "bytes": len(html),
-            "ldjson": [b[:400] for b in __import__("re").findall(r'application/ld\+json[^>]*>(.*?)</script>', html, 16)][:4],
-            "words": {w: low.count(w) for w in ["instock", "outofstock", "out of stock", "notify me", "add to cart", "buy now", "sold out", "currently unavailable", "availability"]},
-            "around": [html[max(0, i - 120): i + 120] for i in [low.find("availability"), low.find("price")] if i >= 0],
-        }
-    return out
+        html = (await sites.get(c, f"https://www.croma.com/x/p/{pid}", {})).text
+    low = html.lower()
+    keys = ["stock", "sellable", "inventory", "buyable", "availab", "window.__", "atp", "pincode", "mrp", "sellingprice", "\"price\""]
+    return {"bytes": len(html), "title": (re.search(r"<title>(.*?)</title>", html, re.S) or [0, ""])[1][:120],
+            "counts": {k: low.count(k) for k in keys},
+            "snips": {k: [html[max(0, m.start() - 80): m.start() + 160] for m in re.finditer(re.escape(k), low)][:3]
+                      for k in ["stock", "sellable", "window.__", "mrp", "buy now"]}}
