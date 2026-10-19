@@ -28,7 +28,13 @@ PROBES = {
 # Sites that block datacenter IPs go through ScraperAPI (residential IPs, India).
 # Extra params per site: render=true runs a real browser, premium=true uses
 # residential IPs for protected domains. Both cost more credits.
-PROXIED = {"croma": {"render": "true"}, "myntra": {}, "croma_api": {"premium": "true"}}
+# croma_api is not proxied: ScraperAPI needs ultra_premium (paid) for it.
+PROXIED = {"croma": {"render": "true"}, "myntra": {}}
+
+
+
+# ponytail: free ScraperAPI plan allows 1 concurrent request; raise if plan upgrades.
+PROXY_SLOT = asyncio.Semaphore(1)
 
 
 def via_proxy(url, extra):
@@ -47,7 +53,8 @@ async def probe(client, name, url, marker):
             await client.get("https://www.myntra.com/")
             r = await client.get(url, headers=MYNTRA_API_HEADERS)
         elif name in PROXIED and os.environ.get("SCRAPER_API_KEY"):
-            r = await client.get(via_proxy(url, PROXIED[name]), timeout=70)
+            async with PROXY_SLOT:
+                r = await client.get(via_proxy(url, PROXIED[name]), timeout=70)
         else:
             r = await client.get(url)
         ok = r.status_code < 400 and marker in r.text.lower()
