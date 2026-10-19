@@ -49,6 +49,7 @@
   .error .state { color: var(--err); } .error .dot { background: var(--err); border-radius: 3px; }
   .match { font-size: 14px; margin: 4px 0 10px; }
   .price { font-weight: 600; }
+  .note { color: var(--muted); font-size: 13px; }
   a.go { color: var(--accent); font-weight: 600; word-break: break-word; }
   .fail { color: var(--err); }
 </style>
@@ -102,6 +103,7 @@ function card(r) {
   const name = r.platform[0].toUpperCase() + r.platform.slice(1);
   const body = r.url
     ? `<div class="match">${esc(r.title)}${r.colour ? " · " + esc(r.colour) : ""} <span class="price">${rupees(r.price)}</span></div>
+       ${r.note ? `<div class="match note">${esc(r.note)}</div>` : ""}
        <a class="go" href="${esc(r.url)}" target="_blank" rel="noopener">Open on ${name} →</a>`
     : `<div class="match">${esc(r.note || NOTE[r.status])}</div>`;
   return `<div class="result ${r.status}"><div class="platform">${name}</div>

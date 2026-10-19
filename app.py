@@ -24,7 +24,7 @@ async def check(client, platform, spec):
         return {"platform": platform, "status": "error", "note": f"Couldn't check right now ({type(e).__name__})."}
     out = {"platform": platform, "status": status}
     if hit:
-        out.update(title=hit["title"], url=hit["url"], price=hit.get("price"), colour=hit.get("colour"))
+        out.update(title=hit["title"], url=hit["url"], price=hit.get("price"), colour=hit.get("colour"), note=hit.get("note"))
     return out
 
 
