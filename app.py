@@ -55,12 +55,19 @@ def index():
 
 @app.get("/debug")
 async def debug(pid: str = "303832"):
-    # Temporary: list stock-ish fields in Croma's embedded product data.
+    # Temporary: Croma pdpData field names, and whether a JS-rendered page enables Buy Now.
     import re
+    url = f"https://www.croma.com/x/p/{pid}"
     async with httpx.AsyncClient(headers=sites.HEADERS, follow_redirects=True, timeout=25) as c:
-        html = (await sites.get(c, f"https://www.croma.com/x/p/{pid}", {})).text
-    i = html.find("window.__INITIAL_DATA__")
-    blob = html[i: html.find("</script>", i)]
-    pdp = blob[: blob.find("pdpPriceReducer")]
-    return {"len": len(blob), "pdp_len": len(pdp),
-            "fields": re.findall(r'"(\w*(?:[Ss]tock|[Aa]vailab|[Ss]ellable|[Bb]uyable|[Ss]tatus|OOS|oos|[Pp]urchas)\w*)"\s*:\s*("[^"]{0,40}"|[\w.]+)', pdp)[:60]}
+        html = (await sites.get(c, url, {})).text
+        i = html.find('"pdpData":{')
+        keys = sorted(set(re.findall(r'"(\w+)":', html[i: html.find("pdpPriceReducer", i)])))
+        try:
+            rendered = (await sites.get(c, url, {"render": "true"})).text
+            low = rendered.lower()
+            buttons = re.findall(r'<button[^>]*>(?:Buy Now|Add to Cart|Notify Me|Out of Stock)[^<]*</button>', rendered)[:4]
+            r = {"bytes": len(rendered), "buttons": buttons,
+                 "words": {w: low.count(w) for w in ["out of stock", "notify me", "currently unavailable", "disablebuynow", "disablecartbtn"]}}
+        except Exception as e:
+            r = {"error": type(e).__name__, "status": getattr(getattr(e, "response", None), "status_code", None)}
+    return {"keys": keys[:400], "rendered": r}
