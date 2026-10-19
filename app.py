@@ -103,4 +103,5 @@ async def croma_file(path: str = "robots.txt"):
     products = re.findall(r"<loc>([^<]*/p/\d+)</loc>", text)
     return {"status": r.status_code, "bytes": len(body), "products": len(products),
             "s24": [p for p in products if "galaxy-s24" in p][:10],
-            "sample": products[:5], "head": text[:600]}
+            "sample": products[:5], "locs": re.findall(r"<loc>([^<]*)</loc>", text)[:300],
+            "head": text[:600]}
