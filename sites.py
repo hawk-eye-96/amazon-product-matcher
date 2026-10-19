@@ -212,6 +212,21 @@ def flipkart_page_stock(html):
     return "in" if ("add to cart" in low or "buy now" in low) else "out"
 
 
+async def flipkart_page(client, url):
+    """Product page HTML. Flipkart rate-limits Render's IP (429) on product pages, so fall back to the proxy;
+    None if both fail (the search result's stock is kept)."""
+    try:
+        return (await get(client, url)).text
+    except Exception:
+        pass
+    if os.environ.get("SCRAPER_API_KEY"):
+        try:
+            return (await get(client, url, {})).text
+        except Exception:
+            pass
+    return None
+
+
 async def flipkart(client, spec):
     for q in spec["queries"]:
         html = (await get(client, "https://www.flipkart.com/search?q=" + quote(q))).text
@@ -220,7 +235,9 @@ async def flipkart(client, spec):
             # Search cards show stock for one size only, so "out" there isn't final: confirm on the page.
             if not any(c["stock"] == "in" for c in hits):
                 for c in hits[:2]:
-                    c["stock"] = flipkart_page_stock((await get(client, c["url"])).text)
+                    html = await flipkart_page(client, c["url"])
+                    if html:
+                        c["stock"] = flipkart_page_stock(html)
             return match.decide(hits)
     return match.decide([])
 
@@ -284,6 +301,11 @@ def croma_candidate(url, brand):
     return {"title": text.title(), "url": url, "tokens": match.tokens(text, drop={match.norm(brand)}),
             "ram": int(rm.group(1)) if rm else None, "storage": match.gb(sm.group(0)) if sm else None,
             "screen": float(scr.group(1)) if scr else None}
+
+
+def croma_price(html):
+    m = re.search(r'"sellingPrice":\{"value":"([\d.]+)"', html)
+    return float(m.group(1)) if m else None
 
 
 def croma_stock(html):

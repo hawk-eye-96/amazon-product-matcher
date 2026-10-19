@@ -52,22 +52,3 @@ async def compare(ask: Ask):
 def index():
     return FileResponse("index.html")
 
-
-@app.get("/debug")
-async def debug(pid: str = "303832"):
-    # Temporary: Croma pdpData field names, and whether a JS-rendered page enables Buy Now.
-    import re
-    url = f"https://www.croma.com/x/p/{pid}"
-    async with httpx.AsyncClient(headers=sites.HEADERS, follow_redirects=True, timeout=25) as c:
-        html = (await sites.get(c, url, {})).text
-        i = html.find('"pdpData":{')
-        keys = sorted(set(re.findall(r'"(\w+)":', html[i: html.find("pdpPriceReducer", i)])))
-        try:
-            rendered = (await sites.get(c, url, {"render": "true"})).text
-            low = rendered.lower()
-            buttons = [rendered[max(0, m.start() - 250): m.start() + 60] for m in re.finditer(r"buy now|add to cart|notify|out of stock|sold out", low)][:6]
-            r = {"bytes": len(rendered), "buttons": buttons,
-                 "words": {w: low.count(w) for w in ["out of stock", "notify me", "currently unavailable", "disablebuynow", "disablecartbtn"]}}
-        except Exception as e:
-            r = {"error": type(e).__name__, "status": getattr(getattr(e, "response", None), "status_code", None)}
-    return {"keys": keys[:400], "rendered": r}
