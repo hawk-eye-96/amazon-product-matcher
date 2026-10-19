@@ -74,8 +74,8 @@ def test_flipkart_blocked_and_page_stock():
     except RuntimeError:
         pass
     assert sites.flipkart_page_stock("<button>Add to cart</button>") == "in"
-    assert sites.flipkart_page_stock("<button>Notify me</button> Sold Out") == "out"
-    assert sites.flipkart_page_stock("<div>Coming soon</div>") == "out"
+    assert sites.flipkart_page_stock("<button>Add to cart</button> Size 9: Sold Out") == "out"  # sold-out text wins
+    assert sites.flipkart_page_stock("<button>Buy now</button> Coming soon") == "out"
 
 
 def test_myntra_parse():
