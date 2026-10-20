@@ -120,6 +120,17 @@ def is_code(t):
     return bool(re.search(r"\d", t)) and bool(re.search(r"[a-z]", t))
 
 
+def same_code(x, y):
+    """UA55U8400FULXL vs u8400f: one contains the other (sites shorten codes). But a 1-2 letter tail is a
+    different variant: TCL 65Q6C vs 65Q6CS."""
+    short, long_ = sorted((x, y), key=len)
+    if short == long_:
+        return True
+    if len(short) < 4 or short not in long_:
+        return False
+    return not (long_.startswith(short) and len(long_) - len(short) <= 2)
+
+
 def same_model(a, c, threshold):
     """Score how well candidate tokens c match Amazon tokens a. 0 = not the same model."""
     A, C = set(a), set(c)
@@ -132,7 +143,7 @@ def same_model(a, c, threshold):
     codes_a, codes_c = [t for t in A if is_code(t)], [t for t in C if is_code(t)]
     if codes_a and codes_c:
         # UA55U8400FULXL on Amazon vs u8400f in a Croma URL: one contains the other.
-        hit = any(x == y or (min(len(x), len(y)) >= 4 and (x in y or y in x)) for x in codes_a for y in codes_c)
+        hit = any(same_code(x, y) for x in codes_a for y in codes_c)
         return 1 + len(A & C) / len(A | C) if hit else 0
     recall = len(A & C) / len(A)
     return recall if recall >= threshold else 0

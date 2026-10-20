@@ -49,6 +49,9 @@ def test_same_model():
     tv = ["crystal", "ua55u8400fulxl"]
     assert same_model(tv, tokens("samsung u8400f 138 cm 55 inch crystal 4k"), 0.75)  # Croma URL style
     assert not same_model(tv, tokens("Samsung Crystal 4K 138 cm (55 inch) LED TV UA55U8100FULXL"), 0.75)
+    assert same_model(["smartchoice", "mini", "65q6c"], tokens("TCL 65Q6C 164 cm (65 inch) Mini LED Google TV"), 0.75)
+    assert not same_model(["smartchoice", "mini", "65q6c"], tokens("TCL 65Q6CS 164 cm (65 inch) Mini LED Google TV"), 0.75)
+    assert same_model(["crystal", "ua55u8400f"], tokens("Samsung Crystal UA55U8400FULXL"), 0.75)  # region tail ULXL: same
     lumio = ["7", "ftw1adsj"]
     assert same_model(lumio, tokens("Lumio Vision 7 Dolby Vision + Atmos Model ID: FTW1-ADSJ"), 0.75)
     assert not same_model(lumio, tokens("Lumio Vision 7 II Gemini Model ID: FTW1-ADSK"), 0.75)  # Vision 7 II
