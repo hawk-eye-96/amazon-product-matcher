@@ -189,6 +189,35 @@ def test_croma_sitemap_ids():
     assert tv["screen"] == 65 and "qn80h" in tv["tokens"]
 
 
+def test_croma_adapter_page_errors(monkeypatch=None):
+    spec = {"category": "tv", "brand": "LG", "title": "LG 43NU870BPLA 2026", "tokens": ["43nu870bpla"], "screen": 43,
+            "colour_family": None}
+    urls = ["https://www.croma.com/lg-nu870b-109-cm-43-inch-tv-2026-model-/p/ph120101nu870b_lg_999",
+            "https://www.croma.com/lg-nu870b-109-cm-43-inch-tv-2026-model-/p/323496"]
+    async def fake_urls(client, category):
+        return urls
+    def run(status):
+        tried = []
+        async def fake_get(client, url, proxy=None):
+            tried.append(url)
+            req = httpx.Request("GET", url)
+            if status != 200:
+                raise httpx.HTTPStatusError("x", request=req, response=httpx.Response(status, request=req))
+            return httpx.Response(200, request=req, text='"sellingPrice":{"value":"30990.00"}')
+        orig = sites.croma_urls, sites.get
+        sites.croma_urls, sites.get = fake_urls, fake_get
+        try:
+            return asyncio.run(sites.croma(None, spec)), tried
+        finally:
+            sites.croma_urls, sites.get = orig
+    (st, hit), tried = run(200)
+    assert st == "in_stock" and hit["price"] == 30990 and tried[0].endswith("/p/323496")  # numeric ID page first
+    (st, hit), _ = run(500)
+    assert st == "in_stock" and hit["price"] is None   # page error: still listed in Croma's catalogue
+    (st, hit), _ = run(404)
+    assert st == "not_listed"                            # both pages gone: delisted
+
+
 def test_tv_and_phone_rules():
     tv = {"category": "tv", "brand": "Samsung", "title": "Samsung TV", "tokens": ["crystal", "ua55u8400fulxl"], "screen": 55}
     c = {"brand": "Samsung", "title": "samsung u8400f", "tokens": ["u8400f"], "screen": 55}

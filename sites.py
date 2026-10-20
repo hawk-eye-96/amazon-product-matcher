@@ -373,15 +373,21 @@ async def croma(client, spec):
     """Croma's page never says whether it's in stock (its own scripts ask a blocked API), so a listed
     product whose page still loads counts as in stock. A delisted product's page 404s -> try the next."""
     cands = [croma_candidate(u, spec["brand"]) for u in await croma_urls(client, spec["category"])]
-    for c in match.rank(spec, cands)[:2]:  # ponytail: at most 2 page loads (1 credit each)
+    # The same product is often listed twice: an old code-style ID page (no price) and a numeric one. Prefer numeric.
+    hits = sorted(match.rank(spec, cands), key=lambda c: not re.search(r"/p/\d+$", c["url"]))
+    unloaded = None
+    for c in hits[:2]:  # ponytail: at most 2 page loads (1 credit each)
         try:
             html = (await get(client, c["url"], {})).text
         except httpx.HTTPStatusError as e:
-            if e.response.status_code in (404, 410):
-                continue
-            raise
+            if e.response.status_code not in (404, 410):  # page didn't load, but it's still in Croma's catalogue
+                unloaded = unloaded or c
+            continue
         c.update(stock="in", price=croma_price(html), note=CROMA_NOTE)
         return match.decide([c])
+    if unloaded:
+        unloaded.update(stock="in", price=None, note=CROMA_NOTE)
+        return match.decide([unloaded])
     return match.decide([], match.miss_note(spec, cands))
 
 
