@@ -228,10 +228,23 @@ async def flipkart_page(client, url):
     return None
 
 
+FULL_PAGE = 20  # fewer results than this on page 1 = there is no page 2 worth fetching
+
+
+def search_pages(queries):
+    """(query, page) to try: page 2 of the best query only, since it's the one that should find the product."""
+    return [(q, p) for i, q in enumerate(queries) for p in ((1, 2) if i == 0 else (1,))]
+
+
 async def flipkart(client, spec):
-    for q in spec["queries"]:
-        html = (await get(client, "https://www.flipkart.com/search?q=" + quote(q))).text
-        hits = match.rank(spec, parse_flipkart(html, spec["brand"]))
+    last = None
+    for q, page in search_pages(spec["queries"]):
+        if page == 2 and last < FULL_PAGE:
+            continue
+        html = (await get(client, f"https://www.flipkart.com/search?q={quote(q)}&page={page}")).text
+        found = parse_flipkart(html, spec["brand"])
+        last = len(found)
+        hits = match.rank(spec, found)
         if hits:
             # Search cards show stock for one size only, so "out" there isn't final: confirm on the page.
             if not any(c["stock"] == "in" for c in hits):
@@ -262,10 +275,15 @@ def parse_myntra(html, brand):
 
 
 async def myntra(client, spec):
-    for q in spec["queries"]:
+    last = None
+    for q, page in search_pages(spec["queries"]):
+        if page == 2 and last < FULL_PAGE:
+            continue
         slug = re.sub(r"[^a-z0-9]+", "-", q.lower()).strip("-")
-        html = (await get(client, f"https://www.myntra.com/{slug}?rawQuery={quote(q)}", {})).text
-        hits = match.rank(spec, parse_myntra(html, spec["brand"]))
+        html = (await get(client, f"https://www.myntra.com/{slug}?rawQuery={quote(q)}&p={page}", {})).text
+        found = parse_myntra(html, spec["brand"])
+        last = len(found)
+        hits = match.rank(spec, found)
         if hits:
             return match.decide(hits)
     return match.decide([])
@@ -305,7 +323,9 @@ def croma_candidate(url, brand):
 
 
 def croma_price(html):
-    m = re.search(r'"sellingPrice":\{"value":"([\d.]+)"', html)
+    """Selling price from the page's app state; some loads leave that empty, so fall back to the schema.org offer."""
+    m = re.search(r'"sellingPrice":\{"value":"?([\d.]+)', html) \
+        or re.search(r'"offers"\s*:\s*\{[^}]*?"price"\s*:\s*"?([\d.]+)', html)
     return float(m.group(1)) if m else None
 
 

@@ -102,7 +102,14 @@ def test_croma_url_parsing():
     tv = sites.croma_candidate("https://www.croma.com/samsung-u8400f-140-cm-55-inch-4k-ultra-hd-led-tv/p/315266", "Samsung")
     assert tv["screen"] == 55 and "u8400f" in tv["tokens"]
     assert sites.croma_price('..."sellingPrice":{"value":"49490.00"}...') == 49490
+    ld = '{"@type": "Offer", "priceCurrency": "INR", "price": "64999.00" }'
+    assert sites.croma_price('"pdpPriceData":{},"offers": ' + ld) == 64999  # app state empty: schema.org offer
+    assert sites.croma_price('"mrp":{"value":"74999.00"}') is None          # MRP is not the selling price
     assert sites.croma_price("<html></html>") is None
+
+
+def test_search_pages():
+    assert sites.search_pages(["a", "b"]) == [("a", 1), ("a", 2), ("b", 1)]
 
 
 def test_tv_and_phone_rules():
