@@ -159,6 +159,8 @@ def score(spec, cand):
     else:
         if not same_colour(spec.get("colour"), cand.get("colour")):
             return 0
+        if any(t.isdigit() and t not in spec["tokens"] for t in cand["tokens"]):  # Court Royale 2, pack of 2
+            return 0
         g1, g2 = spec.get("gender"), cand.get("gender")
         if g1 and g2 and g1 != g2 and "unisex" not in (g1, g2):
             return 0

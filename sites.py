@@ -46,7 +46,7 @@ def clean(s):
 # ---------- Amazon ----------
 
 CATEGORIES = [  # (category, words in Amazon breadcrumbs, fallback words in title)
-    ("phone", ("smartphones",), ("smartphone",)),
+    ("phone", ("smartphones",), ("smartphone", "mobile phone", "iphone")),  # iPhone pages often lack breadcrumbs
     ("tv", ("televisions",), (" tv", "television")),
     ("tshirt", ("t-shirts", "polos", "jerseys", "tees"), ("t-shirt", "tshirt", "polo", "jersey")),
     ("sneakers", ("shoes",), ("shoe", "sneaker")),
@@ -111,6 +111,8 @@ def parse_amazon(html, url):
         or match.gb((re.search(r"\d+\s*GB\s*RAM", title, re.I) or [""])[0]) or (sizes[0] if len(sizes) > 1 else None)
     storage = match.gb(fields.get("memory storage capacity") or fields.get("internal storage")) \
         or (sizes[-1] if sizes else None)
+    if ram and storage and (ram >= storage or ram > 32):  # Amazon sometimes fills RAM with the storage size
+        ram = None
     sm = re.search(r"(\d+(?:\.\d+)?)\s*inch", fields.get("screen size", "") + " " + title, re.I)
     screen = float(sm.group(1)) if sm else None
 
@@ -123,8 +125,12 @@ def parse_amazon(html, url):
 
     if category in ("phone", "tv"):
         name = re.split(r"\||\bwith\b", re.sub(r"\([^)]*\)", " ", title))[0]
-        toks = match.tokens(name + " " + fields.get("item model number", ""), drop=brand_words)
+        # A TV's model number is how other sites name it; a phone's is a regional part number (MYED3HN/A) nobody shows.
+        code = fields.get("item model number", "") if category == "tv" else ""
+        toks = match.tokens(name + " " + code, drop=brand_words)
     else:
+        # Nike-style article codes in the link ("Court-Royale-Running-749747-107") aren't on other sites' titles.
+        slug = re.sub(r"\b\d{5,}(-\d{2,3})?\b", " ", slug)
         toks = match.tokens(fields.get("model name", "") + " " + slug.replace("-", " "), drop=brand_words) \
             or match.tokens(title, drop=brand_words)
 

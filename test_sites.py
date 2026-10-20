@@ -38,6 +38,20 @@ def test_amazon_sneaker_uses_link_slug():
         ("sneakers", "Nike", ["court", "royale"], "blue", "men")
 
 
+def test_amazon_iphone_without_breadcrumbs():
+    s = sites.parse_amazon(amazon_page("iPhone 16 128 GB: 5G Mobile Phone with Camera Control, A18 Chip", "",
+                                       '<tr><td>Brand</td><td>Apple</td></tr><tr><td>RAM Memory Installed Size</td><td>128 GB</td></tr>'
+                                       '<tr><td>Memory Storage Capacity</td><td>128 GB</td></tr>'
+                                       '<tr><td>Item model number</td><td>MYED3HN/A</td></tr>'), "u")
+    assert (s["category"], s["tokens"], s["ram"], s["storage"]) == ("phone", ["iphone", "16"], None, 128)  # bogus RAM dropped
+
+
+def test_amazon_sneaker_drops_article_code():
+    s = sites.parse_amazon(amazon_page("Nike Men Tennis Shoe", "Shoes › Men's Shoes › Sneakers", '<tr><td>Brand</td><td>Nike</td></tr>', colour="WHITE/BLACK",
+                                       canonical="https://www.amazon.in/Nike-Court-Royale-Running-749747-107/dp/B0B35XL88R"), "u")
+    assert s["tokens"] == ["court", "royale"]
+
+
 def test_amazon_unsupported():
     try:
         sites.parse_amazon(amazon_page("Dell Inspiron 15 Laptop", "Computers › Laptops"), "u")

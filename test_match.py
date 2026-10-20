@@ -75,6 +75,7 @@ def test_score_filters():
     assert not score(shoe, fk | {"colour": "White"})
     assert not score(shoe, fk | {"gender": "women"})
     assert score(shoe, fk | {"gender": "unisex"})
+    assert not score(shoe, fk | {"title": "NIKE court royale 2 next nature", "tokens": ["court", "royale", "2", "next", "nature"]})
 
     polo = {"category": "tshirt", "brand": "Puma", "title": "Puma Cotton RCB 2026 Men's Striper Polo",
             "tokens": ["rcb", "striper"], "colour": "Black", "gender": "men"}
