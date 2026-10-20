@@ -31,6 +31,7 @@ def test_colours():
     assert colour_family("Off White") == "white"
     assert colour_family("Amber Yellow") == "yellow"
     assert colour_family("Sparkle") is None
+    assert colour_family("Black-White") == "black" and colour_family("PUTBEI/LINGRN/BLACK/WARSAN") is None
 
 
 def test_specs():

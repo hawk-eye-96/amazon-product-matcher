@@ -65,7 +65,7 @@ def colour_family(text):
     if not text:
         return None
     t = text.lower().replace("off white", "offwhite").replace("off-white", "offwhite")
-    first = re.split(r"[/,&+|]| and ", t)[0]  # only the primary: "PUTBEI/LINGRN/BLACK" is beige, not black
+    first = re.split(r"[/,&+|-]| and ", t)[0]  # only the primary: "PUTBEI/LINGRN/BLACK" is beige, "Black-White" black
     for w in reversed(re.findall(r"[a-z]+", first)):
         if w in COLOURS:
             return COLOURS[w]
@@ -75,7 +75,7 @@ def colour_family(text):
 def colour_set(text):
     """Every colour family named: 'White/Navy' -> {'white', 'blue'}."""
     t = (text or "").lower().replace("off white", "offwhite").replace("off-white", "offwhite")
-    return {COLOURS[w] for w in re.findall(r"[a-z]+", t) if w in COLOURS}
+    return {COLOURS[w] for w in re.findall(r"[a-z]+", t) if w in COLOURS}  # "-" splits words too
 
 
 def same_colour(a, b):
@@ -204,7 +204,8 @@ def miss_note(spec, cands):
             label = f'{c["screen"]:g}"'
         elif cat in ("sneakers", "tshirt") and c.get("colour"):
             g = c.get("gender")
-            label = c["colour"].strip().title() + (f" ({g})" if g and g != spec.get("gender") and g != "unisex" else "")
+            sg = spec.get("gender")
+            label = c["colour"].strip().title() + (f" ({g})" if g and sg and g != sg and "unisex" not in (g, sg) else "")
         else:
             continue  # accessory or missing detail: says nothing about the variant
         same = next((n for n in near if n["label"].lower() == label.lower()), None)
