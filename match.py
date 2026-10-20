@@ -209,6 +209,7 @@ def miss_note(spec, cands):
             labels.append(label)
     if not labels:
         return None
+    labels.sort(key=lambda x: "(" in x)  # same gender first, then "(women)" etc.
     more = f" and {len(labels) - 3} more" if len(labels) > 3 else ""
     return f"Found this model, but only {'with' if cat == 'phone' else 'in'} {', '.join(labels[:3])}{more}."
 

@@ -188,7 +188,7 @@ def test_miss_note():
     shoe = {"category": "sneakers", "brand": "Nike", "title": "Nike Court Royale", "tokens": ["court", "royale"],
             "colour": "Mid Nvy/Wte", "gender": "men"}
     my = {"brand": "Nike", "title": "Nike Court Royale", "tokens": ["court", "royale"], "colour": "white", "gender": "men"}
-    assert match.miss_note(shoe, [my, my | {"colour": "Black", "gender": "women"}]) == \
+    assert match.miss_note(shoe, [my | {"colour": "Black", "gender": "women"}, my]) == \
         "Found this model, but only in White, Black (women)."
     tv = {"category": "tv", "brand": "Samsung", "title": "Samsung TV", "tokens": ["ua55u8400fulxl"], "screen": 55}
     assert match.miss_note(tv, [{"brand": "Samsung", "title": "x", "tokens": ["ua55u8400fulxl"], "screen": 43}]) == \
