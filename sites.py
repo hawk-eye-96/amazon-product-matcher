@@ -96,6 +96,8 @@ def parse_amazon(html, url):
     if not category and not crumbs:
         low = " " + title.lower()
         category = next((c for c, _, tw in CATEGORIES if any(w in low for w in tw)), None)
+    if not category and "clothing" in crumbs and re.search(r"t-?shirt|jersey", title.lower()):
+        category = "tshirt"  # Amazon mis-files some (a Levi's polo under Innerwear › Thermals › Bottoms)
     if not category:
         raise NotSupported("This product isn't a smartphone, TV, sneaker or T-shirt/polo/jersey.")
 

@@ -53,6 +53,17 @@ def test_amazon_iphone_without_breadcrumbs():
     assert (s["category"], s["tokens"], s["ram"], s["storage"]) == ("phone", ["iphone", "16"], None, 128)  # bogus RAM dropped
 
 
+def test_amazon_misfiled_tshirt():
+    s = sites.parse_amazon(amazon_page("Levi's Men's Pure Cotton Slim Fit Polo T-Shirt",
+                                       "Clothing & Accessories › Men › Innerwear › Thermals › Bottoms"), "u")
+    assert s["category"] == "tshirt"
+    try:
+        sites.parse_amazon(amazon_page("KLOSIA Women Printed Straight Kurta", "Clothing & Accessories › Women › Kurtas"), "u")
+        assert False
+    except sites.NotSupported:
+        pass
+
+
 def test_amazon_sneaker_drops_article_code():
     s = sites.parse_amazon(amazon_page("Nike Men Tennis Shoe", "Shoes › Men's Shoes › Sneakers", '<tr><td>Brand</td><td>Nike</td></tr>', colour="WHITE/BLACK",
                                        canonical="https://www.amazon.in/Nike-Court-Royale-Running-749747-107/dp/B0B35XL88R"), "u")
