@@ -149,8 +149,9 @@ def same_model(a, c, threshold):
     return recall if recall >= threshold else 0
 
 
-def score(spec, cand):
-    """spec = Amazon product, cand = a listing on another site. Both are dicts from sites.py."""
+def score(spec, cand, variant=True):
+    """spec = Amazon product, cand = a listing on another site. Both are dicts from sites.py.
+    variant=False checks only brand + model (not RAM/storage, size, colour, gender): used to explain a miss."""
     b = BRANDS.get(norm(spec["brand"]), norm(spec["brand"]))
     cb = BRANDS.get(norm(cand.get("brand")), norm(cand.get("brand")))
     if not (cb and (cb == b or b in cb or cb in b)) and not norm(cand["title"]).startswith(norm(spec["brand"])):
@@ -159,28 +160,57 @@ def score(spec, cand):
     if y1 and y2 and not y1 & y2:
         return 0
     cat = spec["category"]
-    if cat == "phone":
-        if not spec["storage"] or cand.get("storage") != spec["storage"]:
-            return 0
-        if spec["ram"] and cand.get("ram") and cand["ram"] != spec["ram"]:
-            return 0
-    elif cat == "tv":
-        if not spec["screen"] or not cand.get("screen") or abs(cand["screen"] - spec["screen"]) > 1:
-            return 0
-        if not any(is_code(t) for t in spec["tokens"]):  # "Samsung Neo QLED 65" fits a whole range: don't guess
-            return 0
-    else:
-        if not same_colour(spec.get("colour"), cand.get("colour")):
-            return 0
-        if any(t.isdigit() and t not in spec["tokens"] for t in cand["tokens"]):  # Court Royale 2, pack of 2
-            return 0
-        g1, g2 = spec.get("gender"), cand.get("gender")
-        if g1 and g2 and g1 != g2 and "unisex" not in (g1, g2):
-            return 0
+    if cat == "tv" and not any(is_code(t) for t in spec["tokens"]):  # "Samsung Neo QLED 65" fits a range: don't guess
+        return 0
+    if cat in ("sneakers", "tshirt") and any(t.isdigit() and t not in spec["tokens"] for t in cand["tokens"]):
+        return 0  # Court Royale 2, pack of 2
+    if variant and not same_variant(spec, cand):
+        return 0
     # Brand names inside the model ('Redmi Note 13' when the brand is Xiaomi) aren't model words.
     alias = {k for k, v in BRANDS.items() if v == b}
     return same_model([t for t in spec["tokens"] if t not in alias], [t for t in cand["tokens"] if t not in alias],
                       0.75 if cat in ("phone", "tv") else 0.6)
+
+
+def same_variant(spec, cand):
+    """The category's rule: phones RAM + storage, TVs screen size, fashion colour (+ gender)."""
+    cat = spec["category"]
+    if cat == "phone":
+        return bool(spec["storage"]) and cand.get("storage") == spec["storage"] and \
+            not (spec["ram"] and cand.get("ram") and cand["ram"] != spec["ram"])
+    if cat == "tv":
+        return bool(spec["screen"] and cand.get("screen")) and abs(cand["screen"] - spec["screen"]) <= 1
+    g1, g2 = spec.get("gender"), cand.get("gender")
+    return same_colour(spec.get("colour"), cand.get("colour")) and \
+        not (g1 and g2 and g1 != g2 and "unisex" not in (g1, g2))
+
+
+def size(n):
+    return f"{n // 1024:g} TB" if n >= 1024 else f"{n} GB"
+
+
+def miss_note(spec, cands):
+    """Why 'not listed' when the site has the model in other variants:
+    'Found this model, but only with 12 GB RAM / 256 GB.' None if the model itself isn't there."""
+    cat, labels = spec["category"], []
+    for c in cands:
+        if not score(spec, c, variant=False):
+            continue
+        if cat == "phone" and c.get("storage"):
+            label = (f"{c['ram']} GB RAM / " if c.get("ram") else "") + size(c["storage"])
+        elif cat == "tv" and c.get("screen"):
+            label = f'{c["screen"]:g}"'
+        elif cat in ("sneakers", "tshirt") and c.get("colour"):
+            g = c.get("gender")
+            label = c["colour"].strip().title() + (f" ({g})" if g and g != spec.get("gender") and g != "unisex" else "")
+        else:
+            continue  # accessory or missing detail: says nothing about the variant
+        if label.lower() not in (x.lower() for x in labels):
+            labels.append(label)
+    if not labels:
+        return None
+    more = f" and {len(labels) - 3} more" if len(labels) > 3 else ""
+    return f"Found this model, but only {'with' if cat == 'phone' else 'in'} {', '.join(labels[:3])}{more}."
 
 
 def rank(spec, cands):
@@ -191,10 +221,10 @@ def rank(spec, cands):
     return [c for _, c in sorted(scored, key=lambda x: -x[0])]
 
 
-def decide(hits):
-    """hits = ranked matches with 'stock' set. Prefer a buyable one."""
+def decide(hits, note=None):
+    """hits = ranked matches with 'stock' set. Prefer a buyable one. note explains a 'not listed'."""
     if not hits:
-        return "not_listed", None
+        return "not_listed", ({"note": note} if note else None)
     for c in hits:
         if c.get("stock") == "in":
             return "in_stock", c

@@ -23,8 +23,10 @@ async def check(client, platform, spec):
     except Exception as e:  # a blocked/broken site must not look like "not listed"
         return {"platform": platform, "status": "error", "note": f"Couldn't check right now ({type(e).__name__})."}
     out = {"platform": platform, "status": status}
-    if hit:
-        out.update(title=hit["title"], url=hit["url"], price=hit.get("price"), colour=hit.get("colour"), note=hit.get("note"))
+    if hit and hit.get("url"):
+        out.update(title=hit["title"], url=hit["url"], price=hit.get("price"), colour=hit.get("colour"))
+    if hit and hit.get("note"):
+        out["note"] = hit["note"]  # Croma's stock caveat, or why it's not listed
     return out
 
 

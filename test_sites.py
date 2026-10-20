@@ -177,6 +177,34 @@ def test_decide_and_rank():
     assert match.rank(spec, [violet, fe, yellow]) == [yellow, violet]  # same colour first, FE dropped
 
 
+def test_miss_note():
+    op = {"category": "phone", "brand": "OnePlus", "title": "OnePlus 13s 16GB+512GB", "tokens": ["13s"], "ram": 16, "storage": 512}
+    c = {"brand": "OnePlus", "title": "OnePlus 13s 5G", "tokens": ["13s"], "ram": 12}
+    cands = [c | {"storage": 512}, c | {"storage": 256}, c | {"storage": 512},  # duplicate variant listed once
+             {"brand": "OnePlus", "title": "OnePlus 13", "tokens": ["13"], "ram": 16, "storage": 512},  # other model
+             {"title": "oneplus 13s back cover", "tokens": ["13s", "back", "cover"]}]  # accessory: no storage
+    assert match.miss_note(op, cands) == "Found this model, but only with 12 GB RAM / 512 GB, 12 GB RAM / 256 GB."
+    assert match.miss_note(op, cands[3:]) is None  # model not there at all: plain "not listed"
+    shoe = {"category": "sneakers", "brand": "Nike", "title": "Nike Court Royale", "tokens": ["court", "royale"],
+            "colour": "Mid Nvy/Wte", "gender": "men"}
+    my = {"brand": "Nike", "title": "Nike Court Royale", "tokens": ["court", "royale"], "colour": "white", "gender": "men"}
+    assert match.miss_note(shoe, [my, my | {"colour": "Black", "gender": "women"}]) == \
+        "Found this model, but only in White, Black (women)."
+    tv = {"category": "tv", "brand": "Samsung", "title": "Samsung TV", "tokens": ["ua55u8400fulxl"], "screen": 55}
+    assert match.miss_note(tv, [{"brand": "Samsung", "title": "x", "tokens": ["ua55u8400fulxl"], "screen": 43}]) == \
+        'Found this model, but only in 43".'
+    assert match.decide([], "why") == ("not_listed", {"note": "why"}) and match.decide([]) == ("not_listed", None)
+
+
+def test_app_passes_miss_note():
+    async def near(client, spec):
+        return match.decide([], "Found this model, but only with 12 GB RAM / 512 GB.")
+    sites.ADAPTERS["near"] = near
+    r = asyncio.run(app.check(None, "near", {}))
+    del sites.ADAPTERS["near"]
+    assert r == {"platform": "near", "status": "not_listed", "note": "Found this model, but only with 12 GB RAM / 512 GB."}
+
+
 def test_app_error_hides_details():
     async def broken(client, spec):
         raise RuntimeError("https://api.scraperapi.com/?api_key=SECRET")

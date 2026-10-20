@@ -255,7 +255,7 @@ async def search_page(client, url, proxy, page):
 
 
 async def flipkart(client, spec):
-    last = None
+    last, seen = None, []
     for q, page in search_pages(spec["queries"]):
         if page == 2 and last < FULL_PAGE:
             continue
@@ -264,6 +264,7 @@ async def flipkart(client, spec):
             continue
         found = parse_flipkart(html, spec["brand"])
         last = len(found)
+        seen += found
         hits = match.rank(spec, found)
         if hits:
             # Search cards show stock for one size only, so "out" there isn't final: confirm on the page.
@@ -273,7 +274,7 @@ async def flipkart(client, spec):
                     if html:
                         c["stock"] = flipkart_page_stock(html)
             return match.decide(hits)
-    return match.decide([])
+    return match.decide([], match.miss_note(spec, seen))
 
 
 # ---------- Myntra (via proxy: blocks datacenter IPs) ----------
@@ -295,7 +296,7 @@ def parse_myntra(html, brand):
 
 
 async def myntra(client, spec):
-    last = None
+    last, seen = None, []
     for q, page in search_pages(spec["queries"]):
         if page == 2 and last < FULL_PAGE:
             continue
@@ -305,10 +306,11 @@ async def myntra(client, spec):
             continue
         found = parse_myntra(html, spec["brand"])
         last = len(found)
+        seen += found
         hits = match.rank(spec, found)
         if hits:
             return match.decide(hits)
-    return match.decide([])
+    return match.decide([], match.miss_note(spec, seen))
 
 
 # ---------- Croma (sitemap for lookup, proxied product page for stock) ----------
@@ -372,7 +374,7 @@ async def croma(client, spec):
             raise
         c.update(stock="in", price=croma_price(html), note=CROMA_NOTE)
         return match.decide([c])
-    return match.decide([])
+    return match.decide([], match.miss_note(spec, cands))
 
 
 ADAPTERS = {"flipkart": flipkart, "myntra": myntra, "croma": croma}
