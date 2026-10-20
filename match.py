@@ -52,6 +52,7 @@ def tokens(text, drop=()):
     out = []
     for w in t.replace(".", " ").split():
         w = ALIASES.get(w, w)
+        w = next((w[len(d):] for d in drop if len(d) >= 3 and w.startswith(d) and len(w) - len(d) >= 3), w)  # NikeCourt
         if w in GENERIC or w in COLOURS or w in drop or w in out:
             continue
         if len(w) <= 2 and not w.isdigit() and w not in VARIANTS and not is_code(w):  # keep X6, A5, S9
