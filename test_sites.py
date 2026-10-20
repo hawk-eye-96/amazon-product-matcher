@@ -57,11 +57,18 @@ def test_amazon_misfiled_tshirt():
     s = sites.parse_amazon(amazon_page("Levi's Men's Pure Cotton Slim Fit Polo T-Shirt",
                                        "Clothing & Accessories › Men › Innerwear › Thermals › Bottoms"), "u")
     assert s["category"] == "tshirt"
-    try:
-        sites.parse_amazon(amazon_page("KLOSIA Women Printed Straight Kurta", "Clothing & Accessories › Women › Kurtas"), "u")
-        assert False
-    except sites.NotSupported:
-        pass
+    for title, crumbs in [("KLOSIA Women Printed Straight Kurta", "Clothing & Accessories › Women › Kurtas"),
+                          ("Symbol Men's Regular Fit Cotton Formal Shirt", "Clothing & Accessories › Men › T-shirts, Polos & Shirts › Shirts"),
+                          ("U.S. Polo Assn. Men Casual Shirt", "Clothing & Accessories › Men › T-shirts, Polos & Shirts › Shirts"),
+                          ("HITZ Men's Leather Formal Shoes", "Shoes › Men's Shoes › Formal Shoes"),
+                          ("Dr. Ortho Men Slipper", "Shoes › Men's Shoes › Flip-Flops & Slippers"),
+                          ("Spigen Back Cover Case for iPhone 16", "Electronics › Mobile Accessories › Cases & Covers")]:
+        try:
+            sites.parse_amazon(amazon_page(title, crumbs), "u")
+            assert False, title
+        except sites.NotSupported:
+            pass
+    assert sites.parse_amazon(amazon_page("BlissClub Polo T-Shirt for Men", "Men › T-shirts, Polos & Shirts › Polos"), "u")["category"] == "tshirt"
 
 
 def test_amazon_sneaker_drops_article_code():

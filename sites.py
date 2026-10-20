@@ -52,6 +52,9 @@ CATEGORIES = [  # (category, words in Amazon breadcrumbs, fallback words in titl
     ("sneakers", ("shoes",), ("shoe", "sneaker")),
 ]
 
+NOT_SNEAKERS = re.compile(r"sandal|slipper|flip|floater|formal|boot|heel|clog|loafer|moccasin|mojari|jutti|ballerina|flats")
+TSHIRT_TITLE = re.compile(r"\bt-?shirt|\bjersey|\bpolo\b(?! assn)")
+
 
 async def amazon(client, url):
     if not re.search(r"amazon\.in|amzn\.", url):
@@ -92,11 +95,14 @@ def parse_amazon(html, url):
         if v:
             fields.setdefault(k.strip().lower(), v.strip())
 
-    category = next((c for c, cw, _ in CATEGORIES if any(w in crumbs for w in cw)), None)
+    leaf = crumbs.rsplit("›", 1)[-1]  # "T-shirts, Polos & Shirts › Shirts" is a shirt, so T-shirts check the leaf only
+    category = next((c for c, cw, _ in CATEGORIES if any(w in (leaf if c == "tshirt" else crumbs) for w in cw)), None)
+    if category == "sneakers" and NOT_SNEAKERS.search(leaf):
+        category = None
     if not category and not crumbs:
         low = " " + title.lower()
         category = next((c for c, _, tw in CATEGORIES if any(w in low for w in tw)), None)
-    if not category and "clothing" in crumbs and re.search(r"t-?shirt|jersey", title.lower()):
+    if not category and re.search(r"clothing|sportswear|supporters|fashion|t-shirts|polos|jerseys", crumbs) and TSHIRT_TITLE.search(title.lower()):
         category = "tshirt"  # Amazon mis-files some (a Levi's polo under Innerwear › Thermals › Bottoms)
     if not category:
         raise NotSupported("This product isn't a smartphone, TV, sneaker or T-shirt/polo/jersey.")
