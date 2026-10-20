@@ -15,6 +15,7 @@ def test_tokens():
     assert "plus" not in tokens("Lumio Vision 7 TV with 4K HDR Dolby Vision + Atmos")  # '+' between words isn't a variant
     assert "plus" not in tokens("Samsung TV HDR10+ Smart")
     assert "plus" in tokens("Samsung Galaxy S24+ 5G")
+    assert "plus" not in tokens("Samsung Neo QLED TV with 150+ Free Channels")
     assert tokens("Lumio Vision 7 2026 TV FTW1-ADSJ", drop={"lumio"}) == ["7", "ftw1adsj"]  # hyphenated code kept whole
 
 
@@ -68,6 +69,8 @@ def test_score_filters():
     assert not score(spec, good | {"brand": "Apple", "title": "Apple Galaxy S24"})
     case = {"title": "samsung silicone back cover for galaxy s24", "tokens": ["silicone", "back", "cover", "galaxy", "s24"]}
     assert not score(spec, case)  # Croma accessory: no storage -> rejected
+    tv = {"category": "tv", "brand": "Samsung", "title": "Samsung 65 inch Neo QLED", "tokens": ["neo"], "screen": 65}
+    assert not score(tv, {"brand": "Samsung", "title": "Samsung QN70H Neo QLED", "tokens": ["qn70h", "neo"], "screen": 65})  # no code: don't guess
     shoe = {"category": "sneakers", "brand": "Nike", "title": "Nike Court Royale", "tokens": ["court", "royale"],
             "colour": "Mid Nvy/Wte", "gender": "men"}
     fk = {"brand": "NIKE", "title": "NIKE Court Royale", "tokens": ["court", "royale"], "colour": "Navy Blue", "gender": "men"}

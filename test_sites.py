@@ -30,6 +30,13 @@ def test_amazon_tv():
     assert s["category"] == "tv" and s["screen"] == 55 and "ua55u8400fulxl" in s["tokens"] and s["colour"] == "Black"
 
 
+def test_amazon_tv_newer_spec_table():
+    html = amazon_page("Samsung 65 inch (163cm) Neo QLED 4K Vision AI 2026 Smart TV | NQ4 AI Processor", "Televisions").replace(
+        "</body>", '<div id="prodDetails"><table><tr><th>Model Number</th><td>QA65QN2EHAULXL</td></tr></table></div></body>')
+    s = sites.parse_amazon(html, "u")
+    assert "qa65qn2ehaulxl" in s["tokens"] and s["screen"] == 65 and s["colour"] == ""  # "(163cm)" isn't a colour
+
+
 def test_amazon_sneaker_uses_link_slug():
     s = sites.parse_amazon(amazon_page("Nike Men Tennis Shoe", "Shoes › Men's Shoes › Sneakers",
                                        '<tr><td>Brand</td><td>Nike</td></tr>', colour="Mid Nvy/Wte",

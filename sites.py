@@ -83,7 +83,7 @@ def parse_amazon(html, url):
     crumbs = text("#wayfinding-breadcrumbs_feature_div").lower()
     fields = {}
     for tr in t.css("#productOverview_feature_div tr, #productDetails_techSpec_section_1 tr, "
-                    "#productDetails_detailBullets_sections1 tr"):
+                    "#productDetails_detailBullets_sections1 tr, #prodDetails tr"):  # last: newer layout
         cells = tr.css("th, td")
         if len(cells) >= 2:
             fields.setdefault(clean(cells[0].text()).lower(), clean(cells[1].text()))
@@ -118,6 +118,8 @@ def parse_amazon(html, url):
 
     colour = text("#inline-twister-expanded-dimension-text-color_name") or fields.get("colour") \
         or fields.get("color") or fields.get("brand color") or (groups[-1].split(",")[0] if groups else "")
+    if not match.colour_family(colour):  # "(163cm)" as the last bracket isn't a colour
+        colour = ""
     canon = t.css_first('link[rel="canonical"]')
     slug = re.sub(r".*amazon\.in/([^/]+)/dp/.*", r"\1", canon.attributes.get("href", "")) if canon else ""
     if "/" in slug:
@@ -126,7 +128,7 @@ def parse_amazon(html, url):
     if category in ("phone", "tv"):
         name = re.split(r"\||\bwith\b", re.sub(r"\([^)]*\)", " ", title))[0]
         # A TV's model number is how other sites name it; a phone's is a regional part number (MYED3HN/A) nobody shows.
-        code = fields.get("item model number", "") if category == "tv" else ""
+        code = (fields.get("item model number") or fields.get("model number") or "") if category == "tv" else ""
         toks = match.tokens(name + " " + code, drop=brand_words)
     else:
         # Nike-style article codes in the link ("Court-Royale-Running-749747-107") aren't on other sites' titles.

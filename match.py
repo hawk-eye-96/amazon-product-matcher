@@ -44,7 +44,7 @@ ALIASES = {"lo": "low", "hi": "high"}
 def tokens(text, drop=()):
     """Model-identifying words, in order: 'Samsung Galaxy S24 5G AI Smartphone' -> ['galaxy', 's24']."""
     t = PHRASES.sub(" ", text.lower())  # before '+': "HDR10+" must not leave a "plus"
-    t = re.sub(r"(?<=[a-z0-9])\+", " plus ", t).replace("'s", " ")  # "S24+" is a variant; "Vision + Atmos" isn't
+    t = re.sub(r"\b(\w*[a-z]\w*)\+", r"\1 plus ", t).replace("'s", " ")  # "S24+" is a variant; "Vision + Atmos", "150+" aren't
     t = re.sub(r"\b([a-z0-9]{3,})-([a-z0-9]{3,})\b",  # model code "FTW1-ADSJ" stays one token
                lambda m: m[1] + m[2] if is_code(m[1]) or is_code(m[2]) else m[0], t)
     t = re.sub(r"[^a-z0-9.]+", " ", t)
@@ -155,6 +155,8 @@ def score(spec, cand):
             return 0
     elif cat == "tv":
         if not spec["screen"] or not cand.get("screen") or abs(cand["screen"] - spec["screen"]) > 1:
+            return 0
+        if not any(is_code(t) for t in spec["tokens"]):  # "Samsung Neo QLED 65" fits a whole range: don't guess
             return 0
     else:
         if not same_colour(spec.get("colour"), cand.get("colour")):
