@@ -72,6 +72,9 @@ def colour_word(w):
     return None
 
 
+NEUTRAL = {"black", "white", "grey"}
+
+
 def colour_family(text):
     """'Mid Nvy/Wte' -> 'blue', 'Cobalt Violet' -> 'purple'. Primary colour = first part, last colour word in it."""
     if not text:
@@ -79,6 +82,8 @@ def colour_family(text):
     t = text.lower().replace("off white", "offwhite").replace("off-white", "offwhite")
     first = re.split(r"[/,&+|-]| and ", t)[0]  # only the primary: "PUTBEI/LINGRN/BLACK" is beige, "Black-White" black
     words = list(reversed(re.findall(r"[a-z]+", first)))
+    if len(words) >= 2 and {COLOURS.get(w) for w in words[-2:]} <= NEUTRAL and words[-1] != words[-2]:
+        return COLOURS[words[-1]]  # "WHITE BLACK" is two colours, white first (not a black shade like "Sky Blue")
     exact = [COLOURS[w] for w in words if w in COLOURS]  # a real colour word beats a decoded code
     return exact[0] if exact else next((colour_word(w) for w in words if colour_word(w)), None)
 

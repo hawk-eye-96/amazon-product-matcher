@@ -52,6 +52,8 @@ CATEGORIES = [  # (category, words in Amazon breadcrumbs, fallback words in titl
     ("sneakers", ("shoes",), ("shoe", "sneaker")),
 ]
 
+MULTIWORD_BRANDS = ("new balance", "red tape", "u.s. polo assn", "jack & jones", "allen solly", "van heusen", "peter england",
+                    "louis philippe", "tommy hilfiger", "calvin klein", "pepe jeans", "under armour", "united colors of benetton")
 NOT_SNEAKERS = re.compile(r"sandal|slipper|flip|floater|formal|boot|heel|clog|loafer|moccasin|mojari|jutti|ballerina|flats")
 TSHIRT_TITLE = re.compile(r"\bt-?shirt|\bjersey|\bpolo\b(?! assn)")
 
@@ -109,16 +111,18 @@ def parse_amazon(html, url):
 
     byline = text("#bylineInfo")
     bm = re.search(r"Visit the (.+?) Store|Brand: (.+)", byline)
-    brand = fields.get("brand") or (bm and (bm.group(1) or bm.group(2))) or title.split()[0]
+    multi = next((b for b in MULTIWORD_BRANDS if title.lower().startswith(b)), None)  # "New Balance", not "New"
+    brand = fields.get("brand") or (bm and (bm.group(1) or bm.group(2))) or (multi and title[:len(multi)]) or title.split()[0]
     brand_words = set(match.tokens(brand)) | {match.norm(brand)}
 
     groups = re.findall(r"\(([^)]*)\)", title)
     paren = " ".join(groups)
     sizes = sorted(filter(None, (match.gb(x) for x in re.findall(r"\d+\s*[GT]B", paren, re.I))))
-    ram = match.gb(fields.get("ram memory installed size") or fields.get("ram")) \
-        or match.gb((re.search(r"\d+\s*GB\s*RAM", title, re.I) or [""])[0]) or (sizes[0] if len(sizes) > 1 else None)
-    storage = match.gb(fields.get("memory storage capacity") or fields.get("internal storage")) \
-        or (sizes[-1] if sizes else None)
+    # the title names the variant being sold; Amazon's spec table is sometimes copied from a sibling (vivo T5x 8/256 said 6 GB)
+    ram = match.gb((re.search(r"\d+\s*GB\s*RAM", title, re.I) or [""])[0]) or (sizes[0] if len(sizes) > 1 else None) \
+        or match.gb(fields.get("ram memory installed size") or fields.get("ram"))
+    storage = (sizes[-1] if len(sizes) > 1 else None) \
+        or match.gb(fields.get("memory storage capacity") or fields.get("internal storage")) or (sizes[-1] if sizes else None)
     if category == "phone" and (not storage or storage < 32):  # Amazon sometimes fills storage with the RAM size
         std = re.findall(r"\b(32|64|128|256|512)\b|\b(1)\s*TB\b", title, re.I)  # "(Amazonite, 12, GB, 256)"
         storage = max((1024 if t else int(g)) for g, t in std) if std else storage
@@ -139,14 +143,20 @@ def parse_amazon(html, url):
         colour = named[0].title() if named else ""
 
     if category in ("phone", "tv"):
-        name = re.split(r"[|:,]|\bwith\b", re.sub(r"\([^)]*\)", " ", title))[0]  # "iPhone 17e 256 GB: 15.40 cm..."
+        # drop "(Black, 8GB RAM)" but keep a bracketed model: "Nothing Phone (4b) 5G"
+        name = re.sub(r"\(([^)]*)\)", lambda m: m[1] if re.fullmatch(r"\d[a-z]{0,2}", m[1].strip(), re.I) else " ", title)
+        name = re.split(r"[|:,]|\bwith\b", name)[0]  # "iPhone 17e 256 GB: 15.40 cm..."
         # A TV's model number is how other sites name it; a phone's is a regional part number (MYED3HN/A) nobody shows.
-        code = (fields.get("item model number") or fields.get("model number") or "") if category == "tv" else ""
+        code = (fields.get("item model number") or fields.get("model number") or fields.get("model name") or "") \
+            if category == "tv" else ""  # Toshiba gives only "Model name: M450 Series"
         toks = match.tokens(name + " " + code, drop=brand_words)
     else:
         # Nike-style article codes in the link ("Court-Royale-Running-749747-107") aren't on other sites' titles.
         slug = re.sub(r"\b\d{5,}(-\d{1,3}){0,2}\b", " ", slug)  # "749747-107" and a size after it: "749747-107-10"
-        toks = match.tokens(fields.get("model name", "") + " " + slug.replace("-", " "), drop=brand_words) \
+        # ... nor are internal codes or a cut brand ("Converse-CONV-M9160C" for a Chuck Taylor): keep only codes the title shows
+        in_title = set(match.tokens(title))
+        toks = [w for w in match.tokens(fields.get("model name", "") + " " + slug.replace("-", " "), drop=brand_words)
+                if (not match.is_code(w) or w in in_title) and not any(b.startswith(w) for b in brand_words)] \
             or match.tokens(title, drop=brand_words)
         # The link can drop the version ("ASICS-Gel-Excite-Black-Running-Shoes" for Gel-Excite 10): take it from the title.
         toks += [w for w in match.tokens(title, drop=brand_words) if w.isdigit() and w not in toks]

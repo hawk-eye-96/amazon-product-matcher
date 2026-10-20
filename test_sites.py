@@ -24,6 +24,17 @@ def test_amazon_phone():
     assert s["colour"] == "Amber Yellow"  # from the title's last (...) group
 
 
+def test_amazon_phone_title_beats_spec_table():
+    s = sites.parse_amazon(amazon_page("vivo T5x 5G (Cyber Green, 8GB RAM, 256GB Storage) | 50MP AI Dual Camera",
+                                       "Electronics › Mobiles & Accessories › Smartphones",
+                                       '<tr><td>RAM Memory Installed Size</td><td>6 GB</td></tr>'
+                                       '<tr><td>Memory Storage Capacity</td><td>128 GB</td></tr>'), "u")
+    assert (s["ram"], s["storage"]) == (8, 256)
+    s = sites.parse_amazon(amazon_page("Nothing Phone (4b) 5G (White, 8GB RAM, 128GB Storage) | Snapdragon 6 Gen 4",
+                                       "Electronics › Mobiles & Accessories › Smartphones", '<tr><td>Brand</td><td>Nothing</td></tr>'), "u")
+    assert s["tokens"] == ["4b"] and s["colour"] == "White"
+
+
 def test_amazon_tv():
     s = sites.parse_amazon(amazon_page("Samsung 138 cm (55 inches) Crystal 4K Ultra HD Smart LED TV UA55U8400FULXL (Black)",
                                        "Electronics › Televisions › Smart Televisions"), "u")
@@ -51,6 +62,20 @@ def test_amazon_iphone_without_breadcrumbs():
                                        '<tr><td>Memory Storage Capacity</td><td>128 GB</td></tr>'
                                        '<tr><td>Item model number</td><td>MYED3HN/A</td></tr>'), "u")
     assert (s["category"], s["tokens"], s["ram"], s["storage"]) == ("phone", ["iphone", "16"], None, 128)  # bogus RAM dropped
+
+
+def test_amazon_brand_codes_and_tv_model_name():
+    page = amazon_page("New Balance Men BB80IN Sneaker", "Shoes › Men's Shoes › Sneakers", colour="White_4").replace(
+        '<a id="bylineInfo">Visit the Samsung Store</a>', "")
+    assert sites.parse_amazon(page, "u")["brand"] == "New Balance"
+    s = sites.parse_amazon(amazon_page("Converse Unisex Chuck Taylor All Star Black Sneakers (UK Footwear Size System, Adult, 7)",
+                                       "Shoes › Men's Shoes › Sneakers", '<tr><td>Brand</td><td>Converse</td></tr>',
+                                       canonical="https://www.amazon.in/Converse-CONV-M9160C-M9160/dp/B000LFG274"), "u")
+    assert "chuck" in s["tokens"] and not {"conv", "m9160c"} & set(s["tokens"])
+    s = sites.parse_amazon(amazon_page("Toshiba 139 cm (55 Inches) 4K Ultra HD Smart QLED TV | Dolby Atmos", "Televisions",
+                                       '<tr><td>Model name</td><td>M450 Series</td></tr>'), "u")
+    assert "m450" in s["tokens"]
+    assert match.colour_family("WHITE BLACK4") == "white" and match.colour_family("Sky Blue") == "blue"
 
 
 def test_amazon_misfiled_tshirt():
