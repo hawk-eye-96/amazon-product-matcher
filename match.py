@@ -206,8 +206,11 @@ def miss_note(spec, cands):
             label = c["colour"].strip().title() + (f" ({g})" if g and g != spec.get("gender") and g != "unisex" else "")
         else:
             continue  # accessory or missing detail: says nothing about the variant
-        if label.lower() not in (n["label"].lower() for n in near):
+        same = next((n for n in near if n["label"].lower() == label.lower()), None)
+        if not same:
             near.append({"label": label, "url": c["url"]})
+        elif spec.get("colour_family") and c.get("colour_family") == spec["colour_family"]:
+            same["url"] = c["url"]  # same variant in the Amazon colour: the nicer link
     if not near:
         return None
     near.sort(key=lambda n: "(" in n["label"])  # same gender first, then "(women)" etc.

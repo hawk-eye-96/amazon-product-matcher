@@ -188,6 +188,8 @@ def test_miss_note():
     assert miss["note"] == "Found this model, but only with 12 GB RAM / 512 GB, 12 GB RAM / 256 GB."
     assert miss["near"] == [{"label": "12 GB RAM / 512 GB", "url": "https://fk/0"}, {"label": "12 GB RAM / 256 GB", "url": "https://fk/1"}]
     assert miss["lead"] == "Found this model, but only with" and miss["more"] == 0
+    green = match.miss_note(op | {"colour_family": "green"}, cands + [c | {"storage": 512, "colour_family": "green", "url": "https://fk/green"}])
+    assert green["near"][0]["url"] == "https://fk/green"  # same variant, Amazon's colour preferred
     assert match.miss_note(op, cands[3:]) is None  # model not there at all: plain "not listed"
     shoe = {"category": "sneakers", "brand": "Nike", "title": "Nike Court Royale", "tokens": ["court", "royale"],
             "colour": "Mid Nvy/Wte", "gender": "men"}
