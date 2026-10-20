@@ -236,12 +236,24 @@ def search_pages(queries):
     return [(q, p) for i, q in enumerate(queries) for p in ((1, 2) if i == 0 else (1,))]
 
 
+async def search_page(client, url, proxy, page):
+    """Page 1 must load (a failure is an error, not 'not listed'); page 2 is a bonus, so a failure there is skipped."""
+    try:
+        return (await get(client, url, proxy)).text
+    except httpx.HTTPError:
+        if page == 1:
+            raise
+        return None
+
+
 async def flipkart(client, spec):
     last = None
     for q, page in search_pages(spec["queries"]):
         if page == 2 and last < FULL_PAGE:
             continue
-        html = (await get(client, f"https://www.flipkart.com/search?q={quote(q)}&page={page}")).text
+        html = await search_page(client, f"https://www.flipkart.com/search?q={quote(q)}&page={page}", None, page)
+        if html is None:
+            continue
         found = parse_flipkart(html, spec["brand"])
         last = len(found)
         hits = match.rank(spec, found)
@@ -280,7 +292,9 @@ async def myntra(client, spec):
         if page == 2 and last < FULL_PAGE:
             continue
         slug = re.sub(r"[^a-z0-9]+", "-", q.lower()).strip("-")
-        html = (await get(client, f"https://www.myntra.com/{slug}?rawQuery={quote(q)}&p={page}", {})).text
+        html = await search_page(client, f"https://www.myntra.com/{slug}?rawQuery={quote(q)}&p={page}", {}, page)
+        if html is None:
+            continue
         found = parse_myntra(html, spec["brand"])
         last = len(found)
         hits = match.rank(spec, found)

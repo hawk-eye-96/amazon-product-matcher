@@ -2,6 +2,8 @@
 import asyncio
 import json
 
+import httpx
+
 import app
 import match
 import sites
@@ -110,6 +112,16 @@ def test_croma_url_parsing():
 
 def test_search_pages():
     assert sites.search_pages(["a", "b"]) == [("a", 1), ("a", 2), ("b", 1)]
+
+    class Down:  # every request fails
+        async def get(self, url, **k):
+            return httpx.Response(500, request=httpx.Request("GET", url))
+    assert asyncio.run(sites.search_page(Down(), "https://x", None, 2)) is None  # page 2 failing is skipped
+    try:
+        asyncio.run(sites.search_page(Down(), "https://x", None, 1))
+        raise AssertionError("page 1 failing must be an error, not 'not listed'")
+    except httpx.HTTPStatusError:
+        pass
 
 
 def test_tv_and_phone_rules():
