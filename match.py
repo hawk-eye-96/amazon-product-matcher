@@ -164,7 +164,8 @@ def same_model(a, c, threshold):
         hit = any(same_code(x, y) for x in codes_a for y in codes_c)
         return 1 + len(A & C) / len(A | C) if hit else 0
     recall = len(A & C) / len(A)
-    return recall if recall >= threshold else 0
+    # tie-break: fewer extra words is closer ("Chuck Taylor All Star" beats "Chuck Taylor All Star Malden Street")
+    return recall - 0.001 * len(C - A) if recall >= threshold else 0
 
 
 def score(spec, cand, variant=True):
@@ -182,6 +183,8 @@ def score(spec, cand, variant=True):
         return 0
     if cat in ("sneakers", "tshirt") and any(t.isdigit() and t not in spec["tokens"] for t in cand["tokens"]):
         return 0  # Court Royale 2, pack of 2
+    if cat == "tshirt" and ("oversize" in spec["title"].lower()) != ("oversize" in cand["title"].lower()):
+        return 0  # an oversized fit is a different product from the regular one with the same print
     if variant and not same_variant(spec, cand):
         return 0
     # Brand names inside the model ('Redmi Note 13' when the brand is Xiaomi) aren't model words.

@@ -74,6 +74,20 @@ def test_same_model():
     assert same_model(["x6", "pro"], tokens("POCO X6 Pro 5G (Racing Grey, 256 GB)", drop={"poco"}), 0.75)
 
 
+def test_fewer_extra_words_rank_first():
+    a = tokens("Chuck Taylor All Star")
+    assert same_model(a, tokens("Chuck Taylor All Star Casuals"), 0.6) > same_model(a, tokens("Chuck Taylor All Star Malden Street Mid"), 0.6) > 0
+
+
+def test_oversized_is_a_different_tee():
+    spec = {"brand": "Bewakoof", "title": "Bewakoof X DC Batman Men's Cotton Graphic Print Oversized Fit T-Shirt", "category": "tshirt",
+            "tokens": ["batman"], "colour": "Black", "colour_family": "black", "gender": "men"}
+    cand = {"brand": "Bewakoof", "title": "Bewakoof Official Dc Merchandise Batman Outline Logo T-shirt", "tokens": ["batman", "outline"],
+            "colour": "Black", "gender": "men"}
+    assert score(spec, cand) == 0
+    assert score(spec, dict(cand, title="Bewakoof Batman Oversize Printed Cotton T-shirt")) > 0
+
+
 def test_score_filters():
     spec = phone("Samsung Galaxy S24", 8, 128) | {"category": "phone"}
     good = {"brand": "Samsung", "title": "Samsung Galaxy S24 5G", "tokens": ["galaxy", "s24"], "ram": 8, "storage": 128}

@@ -71,7 +71,11 @@ def test_amazon_brand_codes_and_tv_model_name():
     s = sites.parse_amazon(amazon_page("Converse Unisex Chuck Taylor All Star Black Sneakers (UK Footwear Size System, Adult, 7)",
                                        "Shoes › Men's Shoes › Sneakers", '<tr><td>Brand</td><td>Converse</td></tr>',
                                        canonical="https://www.amazon.in/Converse-CONV-M9160C-M9160/dp/B000LFG274"), "u")
-    assert s["tokens"] == ["chuck", "taylor", "all"]  # no link codes, no "(UK Footwear Size System, ..., 7)"
+    assert s["tokens"] == ["chuck", "taylor", "all"]
+    s = sites.parse_amazon(amazon_page("Reebok Men's Sneakers - COURTSWIFT Stamina - Athleisure Shoe - Stylish Shoes for Casual and Everyday Wear",
+                                       "Shoes › Men's Shoes › Sneakers", '<tr><td>Brand</td><td>Reebok</td></tr>',
+                                       canonical="https://www.amazon.in/Reebok-Mens-Sneakers-COURTSWIFT-Athleisure/dp/B0GWQTZRZB"), "u")
+    assert s["tokens"] == ["courtswift", "stamina"]  # no link codes, no "(UK Footwear Size System, ..., 7)"
     s = sites.parse_amazon(amazon_page("Toshiba 139 cm (55 Inches) 4K Ultra HD Smart QLED TV | Dolby Atmos", "Televisions",
                                        '<tr><td>Model name</td><td>M450 Series</td></tr>'), "u")
     assert "m450" in s["tokens"]

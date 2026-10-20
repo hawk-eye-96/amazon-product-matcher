@@ -159,6 +159,9 @@ def parse_amazon(html, url):
         toks = [w for w in match.tokens(fields.get("model name", "") + " " + slug.replace("-", " "), drop=brand_words)
                 if (not match.is_code(w) or w in in_title) and not any(b.startswith(w) for b in brand_words)] \
             or match.tokens(short, drop=brand_words)
+        full = match.tokens(short, drop=brand_words)
+        if set(toks) < set(full):  # the link cut the name short ("COURTSWIFT-Athleisure" for COURTSWIFT Stamina)
+            toks = full
         # The link can drop the version ("ASICS-Gel-Excite-Black-Running-Shoes" for Gel-Excite 10): take it from the title.
         toks += [w for w in match.tokens(short, drop=brand_words) if w.isdigit() and w not in toks]
 
@@ -389,7 +392,8 @@ def croma_price(html):
     return float(m.group(1)) if m else None
 
 
-CROMA_NOTE = "Listed on Croma. Stock isn't checked live: Croma only reveals it to a real browser."
+CROMA_NOTE = ("Listed on Croma. Stock and today's price aren't checked live: Croma only reveals them to a real browser, "
+              "so the price shown is its listed price (the page may show a lower deal price).")
 
 
 async def croma(client, spec):
