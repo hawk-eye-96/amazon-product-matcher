@@ -140,6 +140,8 @@ def parse_amazon(html, url):
         slug = re.sub(r"\b\d{5,}(-\d{1,3}){0,2}\b", " ", slug)  # "749747-107" and a size after it: "749747-107-10"
         toks = match.tokens(fields.get("model name", "") + " " + slug.replace("-", " "), drop=brand_words) \
             or match.tokens(title, drop=brand_words)
+        # The link can drop the version ("ASICS-Gel-Excite-Black-Running-Shoes" for Gel-Excite 10): take it from the title.
+        toks += [w for w in match.tokens(title, drop=brand_words) if w.isdigit() and w not in toks]
 
     spec = {
         "url": url, "title": title, "category": category, "brand": brand, "tokens": toks,

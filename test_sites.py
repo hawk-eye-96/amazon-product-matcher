@@ -86,6 +86,12 @@ def test_amazon_colour_code_falls_back_to_link():
     assert s["colour"] == "Beige"  # canonical is the colourless parent: the page title has it
 
 
+def test_amazon_sneaker_version_from_title():
+    s = sites.parse_amazon(amazon_page("ASICS Mens Gel-Excite 10 Running Shoes", "Shoes › Men's Shoes › Sports Shoes", '<tr><td>Brand</td><td>ASICS</td></tr>',
+                                       colour="BLACK/NEW LEAF", canonical="https://www.amazon.in/ASICS-Gel-Excite-Black-Running-Shoes/dp/B0D9BNCGZW"), "u")
+    assert s["tokens"] == ["gel", "excite", "10"]
+
+
 def test_amazon_unsupported():
     try:
         sites.parse_amazon(amazon_page("Dell Inspiron 15 Laptop", "Computers › Laptops"), "u")
