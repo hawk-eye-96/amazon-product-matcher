@@ -50,6 +50,7 @@
   .match { font-size: 14px; margin: 4px 0 10px; }
   .price { font-weight: 600; }
   .note { color: var(--muted); font-size: 13px; }
+  a.go.near { display: block; margin-top: 6px; font-size: 14px; }
   a.go { color: var(--accent); font-weight: 600; word-break: break-word; }
   .fail { color: var(--err); }
 </style>
@@ -105,6 +106,10 @@ function card(r) {
     ? `<div class="match">${esc(r.title)}${r.colour ? " · " + esc(r.colour) : ""} <span class="price">${rupees(r.price)}</span></div>
        ${r.note ? `<div class="match note">${esc(r.note)}</div>` : ""}
        <a class="go" href="${esc(r.url)}" target="_blank" rel="noopener">Open on ${name} →</a>`
+    : r.near
+    ? `<div class="match">${esc(r.lead)}:</div>
+       ${r.near.map(n => `<a class="go near" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.label)} on ${name} →</a>`).join("")}
+       ${r.more ? `<div class="match note">and ${r.more} more</div>` : ""}`
     : `<div class="match">${esc(r.note || NOTE[r.status])}</div>`;
   return `<div class="result ${r.status}"><div class="platform">${name}</div>
     <div class="state"><span class="dot"></span>${LABEL[r.status]}</div>${r.url ? `<div class="match">${NOTE[r.status]}</div>` : ""}${body}</div>`;

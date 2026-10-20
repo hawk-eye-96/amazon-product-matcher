@@ -190,9 +190,10 @@ def size(n):
 
 
 def miss_note(spec, cands):
-    """Why 'not listed' when the site has the model in other variants:
-    'Found this model, but only with 12 GB RAM / 256 GB.' None if the model itself isn't there."""
-    cat, labels = spec["category"], []
+    """Why 'not listed' when the site has the model in other variants, with a link to each:
+    {'note': 'Found this model, but only with 12 GB RAM / 256 GB.', 'lead': ..., 'near': [{label, url}], 'more': 0}.
+    None if the model itself isn't there."""
+    cat, near = spec["category"], []
     for c in cands:
         if not score(spec, c, variant=False):
             continue
@@ -205,13 +206,15 @@ def miss_note(spec, cands):
             label = c["colour"].strip().title() + (f" ({g})" if g and g != spec.get("gender") and g != "unisex" else "")
         else:
             continue  # accessory or missing detail: says nothing about the variant
-        if label.lower() not in (x.lower() for x in labels):
-            labels.append(label)
-    if not labels:
+        if label.lower() not in (n["label"].lower() for n in near):
+            near.append({"label": label, "url": c["url"]})
+    if not near:
         return None
-    labels.sort(key=lambda x: "(" in x)  # same gender first, then "(women)" etc.
-    more = f" and {len(labels) - 3} more" if len(labels) > 3 else ""
-    return f"Found this model, but only {'with' if cat == 'phone' else 'in'} {', '.join(labels[:3])}{more}."
+    near.sort(key=lambda n: "(" in n["label"])  # same gender first, then "(women)" etc.
+    lead = f"Found this model, but only {'with' if cat == 'phone' else 'in'}"
+    more = max(len(near) - 3, 0)
+    note = f"{lead} {', '.join(n['label'] for n in near[:3])}{f' and {more} more' if more else ''}."
+    return {"note": note, "lead": lead, "near": near[:3], "more": more}
 
 
 def rank(spec, cands):
@@ -222,10 +225,10 @@ def rank(spec, cands):
     return [c for _, c in sorted(scored, key=lambda x: -x[0])]
 
 
-def decide(hits, note=None):
-    """hits = ranked matches with 'stock' set. Prefer a buyable one. note explains a 'not listed'."""
+def decide(hits, miss=None):
+    """hits = ranked matches with 'stock' set. Prefer a buyable one. miss (from miss_note) explains a 'not listed'."""
     if not hits:
-        return "not_listed", ({"note": note} if note else None)
+        return "not_listed", miss
     for c in hits:
         if c.get("stock") == "in":
             return "in_stock", c

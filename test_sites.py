@@ -183,26 +183,34 @@ def test_miss_note():
     cands = [c | {"storage": 512}, c | {"storage": 256}, c | {"storage": 512},  # duplicate variant listed once
              {"brand": "OnePlus", "title": "OnePlus 13", "tokens": ["13"], "ram": 16, "storage": 512},  # other model
              {"title": "oneplus 13s back cover", "tokens": ["13s", "back", "cover"]}]  # accessory: no storage
-    assert match.miss_note(op, cands) == "Found this model, but only with 12 GB RAM / 512 GB, 12 GB RAM / 256 GB."
+    cands = [x | {"url": f"https://fk/{i}"} for i, x in enumerate(cands)]
+    miss = match.miss_note(op, cands)
+    assert miss["note"] == "Found this model, but only with 12 GB RAM / 512 GB, 12 GB RAM / 256 GB."
+    assert miss["near"] == [{"label": "12 GB RAM / 512 GB", "url": "https://fk/0"}, {"label": "12 GB RAM / 256 GB", "url": "https://fk/1"}]
+    assert miss["lead"] == "Found this model, but only with" and miss["more"] == 0
     assert match.miss_note(op, cands[3:]) is None  # model not there at all: plain "not listed"
     shoe = {"category": "sneakers", "brand": "Nike", "title": "Nike Court Royale", "tokens": ["court", "royale"],
             "colour": "Mid Nvy/Wte", "gender": "men"}
-    my = {"brand": "Nike", "title": "Nike Court Royale", "tokens": ["court", "royale"], "colour": "white", "gender": "men"}
-    assert match.miss_note(shoe, [my | {"colour": "Black", "gender": "women"}, my]) == \
+    my = {"brand": "Nike", "title": "Nike Court Royale", "tokens": ["court", "royale"], "colour": "white", "gender": "men", "url": "u"}
+    assert match.miss_note(shoe, [my | {"colour": "Black", "gender": "women"}, my])["note"] == \
         "Found this model, but only in White, Black (women)."
+    many = [my | {"colour": c} for c in ("White", "Black", "Red", "Green", "Grey")]
+    assert match.miss_note(shoe, many)["note"].endswith("White, Black, Red and 2 more.")
     tv = {"category": "tv", "brand": "Samsung", "title": "Samsung TV", "tokens": ["ua55u8400fulxl"], "screen": 55}
-    assert match.miss_note(tv, [{"brand": "Samsung", "title": "x", "tokens": ["ua55u8400fulxl"], "screen": 43}]) == \
+    assert match.miss_note(tv, [{"brand": "Samsung", "title": "x", "tokens": ["ua55u8400fulxl"], "screen": 43, "url": "u"}])["note"] == \
         'Found this model, but only in 43".'
-    assert match.decide([], "why") == ("not_listed", {"note": "why"}) and match.decide([]) == ("not_listed", None)
+    assert match.decide([], miss) == ("not_listed", miss) and match.decide([]) == ("not_listed", None)
 
 
 def test_app_passes_miss_note():
     async def near(client, spec):
-        return match.decide([], "Found this model, but only with 12 GB RAM / 512 GB.")
+        return match.decide([], {"note": "Found this model, but only with 12 GB RAM / 512 GB.", "lead": "Found this model, but only with",
+                                 "near": [{"label": "12 GB RAM / 512 GB", "url": "https://fk/1"}], "more": 0})
     sites.ADAPTERS["near"] = near
     r = asyncio.run(app.check(None, "near", {}))
     del sites.ADAPTERS["near"]
-    assert r == {"platform": "near", "status": "not_listed", "note": "Found this model, but only with 12 GB RAM / 512 GB."}
+    assert r == {"platform": "near", "status": "not_listed", "note": "Found this model, but only with 12 GB RAM / 512 GB.",
+                 "lead": "Found this model, but only with", "near": [{"label": "12 GB RAM / 512 GB", "url": "https://fk/1"}], "more": 0}
 
 
 def test_app_error_hides_details():

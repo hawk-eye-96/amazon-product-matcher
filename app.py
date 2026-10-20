@@ -27,6 +27,8 @@ async def check(client, platform, spec):
         out.update(title=hit["title"], url=hit["url"], price=hit.get("price"), colour=hit.get("colour"))
     if hit and hit.get("note"):
         out["note"] = hit["note"]  # Croma's stock caveat, or why it's not listed
+    if hit and hit.get("near"):
+        out.update(lead=hit["lead"], near=hit["near"], more=hit["more"])  # links to the variants it does sell
     return out
 
 
