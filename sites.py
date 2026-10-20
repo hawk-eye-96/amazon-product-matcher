@@ -275,7 +275,7 @@ async def myntra(client, spec):
 
 # Croma's sitemap index links these with a missing slash ("/sitemapsphones-..."); these paths work.
 CROMA_SITEMAPS = {"phone": "sitemaps/phones-wearables/c/1.gz", "tv": "sitemaps/televisions-accessories/c/997.gz"}
-CROMA_TTL = 24 * 3600
+CROMA_TTL = 3600  # Croma list refresh; stock and price are fetched live per search
 _croma = {}  # category -> (loaded_at, [urls])
 _croma_lock = asyncio.Lock()
 
