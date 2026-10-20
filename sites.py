@@ -126,7 +126,7 @@ def parse_amazon(html, url):
         slug = ""
 
     if category in ("phone", "tv"):
-        name = re.split(r"\||\bwith\b", re.sub(r"\([^)]*\)", " ", title))[0]
+        name = re.split(r"[|:,]|\bwith\b", re.sub(r"\([^)]*\)", " ", title))[0]  # "iPhone 17e 256 GB: 15.40 cm..."
         # A TV's model number is how other sites name it; a phone's is a regional part number (MYED3HN/A) nobody shows.
         code = (fields.get("item model number") or fields.get("model number") or "") if category == "tv" else ""
         toks = match.tokens(name + " " + code, drop=brand_words)
@@ -348,7 +348,8 @@ def croma_candidate(url, brand):
     scr = re.search(r"(\d+(?:\.\d+)?) inch", text)
     return {"title": text.title(), "url": url, "tokens": match.tokens(text, drop={match.norm(brand)}),
             "ram": int(rm.group(1)) if rm else None, "storage": match.gb(sm.group(0)) if sm else None,
-            "screen": float(scr.group(1)) if scr else None}
+            "screen": float(scr.group(1)) if scr else None,
+            "colour_family": match.colour_family(text)}  # link ends in the colour: picks the same-colour listing
 
 
 def croma_price(html):

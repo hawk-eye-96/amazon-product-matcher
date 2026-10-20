@@ -12,6 +12,7 @@ def test_tokens():
     assert tokens("samsung galaxy s24 5g 8gb ram 256gb cobalt violet", drop={"samsung"}) == ["galaxy", "s24"]
     assert tokens("Court-Royale-Shoes-Midnight-White") == ["court", "royale"]
     assert tokens("Apple iPhone 15 (128 GB) - Black", drop={"apple"}) == ["iphone", "15"]
+    assert tokens("Poco X6 Pro 5G", drop={"poco"}) == ["x6", "pro"]  # 2-char model codes are kept
     assert "plus" not in tokens("Lumio Vision 7 TV with 4K HDR Dolby Vision + Atmos")  # '+' between words isn't a variant
     assert "plus" not in tokens("Samsung TV HDR10+ Smart")
     assert "plus" in tokens("Samsung Galaxy S24+ 5G")
@@ -61,6 +62,8 @@ def test_same_model():
     assert not same_model(royale, tokens("NIKE Court Royale AC SE Tennis Shoes For Women"), 0.6)
     assert not same_model(royale, tokens("NIKE court vision lo nn Sneakers For Men"), 0.6)
     assert not same_model(["air", "max", "90"], tokens("Nike Air Max SC"), 0.6)
+    assert not same_model(["x6", "pro"], tokens("POCO X8 Pro (Black, 256 GB)", drop={"poco"}), 0.75)
+    assert same_model(["x6", "pro"], tokens("POCO X6 Pro 5G (Racing Grey, 256 GB)", drop={"poco"}), 0.75)
 
 
 def test_score_filters():

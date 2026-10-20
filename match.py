@@ -54,7 +54,7 @@ def tokens(text, drop=()):
         w = ALIASES.get(w, w)
         if w in GENERIC or w in COLOURS or w in drop or w in out:
             continue
-        if len(w) <= 2 and not w.isdigit() and w not in VARIANTS:
+        if len(w) <= 2 and not w.isdigit() and w not in VARIANTS and not is_code(w):  # keep X6, A5, S9
             continue
         out.append(w)
     return out

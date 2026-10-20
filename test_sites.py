@@ -59,6 +59,12 @@ def test_amazon_sneaker_drops_article_code():
     assert s["tokens"] == ["court", "royale"]
 
 
+def test_amazon_phone_title_with_colon():
+    s = sites.parse_amazon(amazon_page("Apple iPhone 17e 256 GB: 15.40 cm (6.1″) Super Retina XDR Display, A19 Chip", "Smartphones",
+                                       '<tr><td>Brand</td><td>Apple</td></tr>'), "u")
+    assert s["tokens"] == ["iphone", "17e"]
+
+
 def test_amazon_unsupported():
     try:
         sites.parse_amazon(amazon_page("Dell Inspiron 15 Laptop", "Computers › Laptops"), "u")
@@ -119,7 +125,7 @@ def test_myntra_parse():
 
 def test_croma_url_parsing():
     c = sites.croma_candidate("https://www.croma.com/samsung-galaxy-s24-5g-8gb-ram-128gb-cobalt-violet-/p/303832", "Samsung")
-    assert (c["ram"], c["storage"], c["tokens"]) == (8, 128, ["galaxy", "s24"])
+    assert (c["ram"], c["storage"], c["tokens"], c["colour_family"]) == (8, 128, ["galaxy", "s24"], "purple")
     c = sites.croma_candidate("https://www.croma.com/samsung-galaxy-s24-5g-256gb-onyx-black/p/1", "Samsung")
     assert (c["ram"], c["storage"]) == (None, 256)  # no RAM in the link: still matchable on storage
     tv = sites.croma_candidate("https://www.croma.com/samsung-u8400f-140-cm-55-inch-4k-ultra-hd-led-tv/p/315266", "Samsung")
