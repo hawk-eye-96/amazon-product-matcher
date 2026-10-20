@@ -9,8 +9,8 @@ import match
 import sites
 
 
-def amazon_page(title, crumbs, rows="", colour="", canonical=""):
-    return f"""<html><head><link rel="canonical" href="{canonical}"></head><body>
+def amazon_page(title, crumbs, rows="", colour="", canonical="", page_title=""):
+    return f"""<html><head><title>{page_title}</title><link rel="canonical" href="{canonical}"></head><body>
     <span id="productTitle"> {title} </span><div id="wayfinding-breadcrumbs_feature_div">{crumbs}</div>
     <a id="bylineInfo">Visit the Samsung Store</a>
     <div id="productOverview_feature_div"><table>{rows}</table></div>
@@ -57,6 +57,9 @@ def test_amazon_sneaker_drops_article_code():
     s = sites.parse_amazon(amazon_page("Nike Men Tennis Shoe", "Shoes › Men's Shoes › Sneakers", '<tr><td>Brand</td><td>Nike</td></tr>', colour="WHITE/BLACK",
                                        canonical="https://www.amazon.in/Nike-Court-Royale-Running-749747-107/dp/B0B35XL88R"), "u")
     assert s["tokens"] == ["court", "royale"]
+    s = sites.parse_amazon(amazon_page("Nike Men Tennis Shoe", "Shoes › Men's Shoes › Sneakers", '<tr><td>Brand</td><td>Nike</td></tr>', colour="WHITE/BLACK",
+                                       canonical="https://www.amazon.in/Nike-749747-107-Court-ROYALE-749747-107-10-WHITE-BLACK/dp/B09V86VZNN"), "u")
+    assert s["tokens"] == ["court", "royale"]  # size 10 after the article code dropped too
 
 
 def test_amazon_phone_bad_storage_field():
@@ -70,6 +73,17 @@ def test_amazon_phone_title_with_colon():
     s = sites.parse_amazon(amazon_page("Apple iPhone 17e 256 GB: 15.40 cm (6.1″) Super Retina XDR Display, A19 Chip", "Smartphones",
                                        '<tr><td>Brand</td><td>Apple</td></tr>'), "u")
     assert s["tokens"] == ["iphone", "17e"]
+
+
+def test_amazon_colour_code_falls_back_to_link():
+    s = sites.parse_amazon(amazon_page("adidas Mens Soulzie M Sneaker", "Shoes › Men's Shoes › Sneakers", '<tr><td>Brand</td><td>adidas</td></tr>',
+                                       colour="PUTBEI/LINGRN/BLACK/WARSAN",
+                                       canonical="https://www.amazon.in/Adidas-Soulzie-Casual-Shoe-Beige/dp/B0FC2LK2YC"), "u")
+    assert (s["colour"], s["colour_family"]) == ("Beige", "beige")
+    s = sites.parse_amazon(amazon_page("adidas Mens Soulzie M Sneaker", "Shoes › Men's Shoes › Sneakers", '<tr><td>Brand</td><td>adidas</td></tr>',
+                                       colour="PUTBEI/LINGRN/BLACK/WARSAN", canonical="https://www.amazon.in/adidas-Mens-Soulzie-M-Sneaker/dp/B0FFN1MZ9B",
+                                       page_title="Buy Adidas Men Soulzie M, Casual Shoe, Beige, 9 at Amazon.in"), "u")
+    assert s["colour"] == "Beige"  # canonical is the colourless parent: the page title has it
 
 
 def test_amazon_unsupported():

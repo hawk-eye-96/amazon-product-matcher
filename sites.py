@@ -121,12 +121,14 @@ def parse_amazon(html, url):
 
     colour = text("#inline-twister-expanded-dimension-text-color_name") or fields.get("colour") \
         or fields.get("color") or fields.get("brand color") or (groups[-1].split(",")[0] if groups else "")
-    if not match.colour_family(colour):  # "(163cm)" as the last bracket isn't a colour
-        colour = ""
     canon = t.css_first('link[rel="canonical"]')
     slug = re.sub(r".*amazon\.in/([^/]+)/dp/.*", r"\1", canon.attributes.get("href", "")) if canon else ""
     if "/" in slug:
         slug = ""
+    if not match.colour_family(colour):  # "(163cm)" isn't a colour; "PUTBEI/LINGRN" is a code: the link says "Beige"
+        page = text("title")  # "Buy Adidas Men Soulzie M, Casual Shoe, Beige, 9 at Amazon.in"
+        named = [w for w in re.findall(r"[a-z]+", " ".join((slug, page, title)).lower()) if w in match.COLOURS]
+        colour = named[0].title() if named else ""
 
     if category in ("phone", "tv"):
         name = re.split(r"[|:,]|\bwith\b", re.sub(r"\([^)]*\)", " ", title))[0]  # "iPhone 17e 256 GB: 15.40 cm..."
@@ -135,7 +137,7 @@ def parse_amazon(html, url):
         toks = match.tokens(name + " " + code, drop=brand_words)
     else:
         # Nike-style article codes in the link ("Court-Royale-Running-749747-107") aren't on other sites' titles.
-        slug = re.sub(r"\b\d{5,}(-\d{2,3})?\b", " ", slug)
+        slug = re.sub(r"\b\d{5,}(-\d{1,3}){0,2}\b", " ", slug)  # "749747-107" and a size after it: "749747-107-10"
         toks = match.tokens(fields.get("model name", "") + " " + slug.replace("-", " "), drop=brand_words) \
             or match.tokens(title, drop=brand_words)
 

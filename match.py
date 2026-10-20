@@ -65,10 +65,10 @@ def colour_family(text):
     if not text:
         return None
     t = text.lower().replace("off white", "offwhite").replace("off-white", "offwhite")
-    for part in re.split(r"[/,&+|]| and ", t):
-        for w in reversed(re.findall(r"[a-z]+", part)):
-            if w in COLOURS:
-                return COLOURS[w]
+    first = re.split(r"[/,&+|]| and ", t)[0]  # only the primary: "PUTBEI/LINGRN/BLACK" is beige, not black
+    for w in reversed(re.findall(r"[a-z]+", first)):
+        if w in COLOURS:
+            return COLOURS[w]
     return None
 
 
