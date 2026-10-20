@@ -338,7 +338,11 @@ async def croma_urls(client, category):
     async with _croma_lock:
         at, urls = _croma.get(category, (0, []))
         if time.time() - at > CROMA_TTL:
-            body = (await get(client, "https://www.croma.com/" + CROMA_SITEMAPS[category], {})).content
+            url = "https://www.croma.com/" + CROMA_SITEMAPS[category]
+            try:
+                body = (await get(client, url, {})).content
+            except httpx.HTTPError:  # first search after a restart downloads it: one retry before giving up
+                body = (await get(client, url, {})).content
             if body[:2] == b"\x1f\x8b":
                 body = gzip.decompress(body)
             urls = croma_product_urls(body.decode("utf-8", "replace"))
