@@ -38,13 +38,15 @@ inch inches cm star stars built voice assistant remote
 
 PHRASES = re.compile(r"\b(ultra hd|full hd|hd ready|quad hd|4k uhd|hdr ?10\+?|dolby (vision|atmos)|off white)\b")
 UNITS = re.compile(r"\b\d+(?:\.\d+)?\s*(?:gb|tb|mb|cm|mm|inch|inches|in|hz|mah|mp|w|k|g)\b|\b(?:19|20)\d\d\b")
-ALIASES = {"lo": "low", "hi": "high", "+": "plus"}
+ALIASES = {"lo": "low", "hi": "high"}
 
 
 def tokens(text, drop=()):
     """Model-identifying words, in order: 'Samsung Galaxy S24 5G AI Smartphone' -> ['galaxy', 's24']."""
-    t = text.lower().replace("+", " plus ").replace("'s", " ")
-    t = PHRASES.sub(" ", t)
+    t = PHRASES.sub(" ", text.lower())  # before '+': "HDR10+" must not leave a "plus"
+    t = re.sub(r"(?<=[a-z0-9])\+", " plus ", t).replace("'s", " ")  # "S24+" is a variant; "Vision + Atmos" isn't
+    t = re.sub(r"\b([a-z0-9]{3,})-([a-z0-9]{3,})\b",  # model code "FTW1-ADSJ" stays one token
+               lambda m: m[1] + m[2] if is_code(m[1]) or is_code(m[2]) else m[0], t)
     t = re.sub(r"[^a-z0-9.]+", " ", t)
     t = UNITS.sub(" ", t)
     out = []
@@ -121,6 +123,8 @@ def is_code(t):
 def same_model(a, c, threshold):
     """Score how well candidate tokens c match Amazon tokens a. 0 = not the same model."""
     A, C = set(a), set(c)
+    if any(len(x) >= 6 and is_code(x) for x in A & C):  # same full model code (UA55U8400FULXL): settled,
+        return 1 + len(A & C) / len(A | C)               # whatever marketing words ("Prime Video") the titles add
     if not A or (A & VARIANTS) != (C & VARIANTS):
         return 0
     if any(t.isdigit() and t not in C for t in A):  # iPhone 15 vs 16, Air Max 90 vs SC

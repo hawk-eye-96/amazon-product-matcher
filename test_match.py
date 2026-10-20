@@ -12,6 +12,10 @@ def test_tokens():
     assert tokens("samsung galaxy s24 5g 8gb ram 256gb cobalt violet", drop={"samsung"}) == ["galaxy", "s24"]
     assert tokens("Court-Royale-Shoes-Midnight-White") == ["court", "royale"]
     assert tokens("Apple iPhone 15 (128 GB) - Black", drop={"apple"}) == ["iphone", "15"]
+    assert "plus" not in tokens("Lumio Vision 7 TV with 4K HDR Dolby Vision + Atmos")  # '+' between words isn't a variant
+    assert "plus" not in tokens("Samsung TV HDR10+ Smart")
+    assert "plus" in tokens("Samsung Galaxy S24+ 5G")
+    assert tokens("Lumio Vision 7 2026 TV FTW1-ADSJ", drop={"lumio"}) == ["7", "ftw1adsj"]  # hyphenated code kept whole
 
 
 def test_colours():
@@ -44,6 +48,10 @@ def test_same_model():
     tv = ["crystal", "ua55u8400fulxl"]
     assert same_model(tv, tokens("samsung u8400f 138 cm 55 inch crystal 4k"), 0.75)  # Croma URL style
     assert not same_model(tv, tokens("Samsung Crystal 4K 138 cm (55 inch) LED TV UA55U8100FULXL"), 0.75)
+    lumio = ["7", "ftw1adsj"]
+    assert same_model(lumio, tokens("Lumio Vision 7 Dolby Vision + Atmos Model ID: FTW1-ADSJ"), 0.75)
+    assert not same_model(lumio, tokens("Lumio Vision 7 II Gemini Model ID: FTW1-ADSK"), 0.75)  # Vision 7 II
+    assert same_model(["crystal", "ua55u8400fulxl"], tokens("Samsung UA55U8400FULXL with Prime Video"), 0.75)  # code settles it
     royale = ["court", "royale"]
     assert same_model(royale, tokens("NIKE Court Royale Tennis Shoes For Men"), 0.6)
     assert not same_model(royale, tokens("NIKE Court Royale AC SE Tennis Shoes For Women"), 0.6)
