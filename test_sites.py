@@ -237,6 +237,11 @@ def test_miss_note():
     assert match.decide([], miss) == ("not_listed", miss) and match.decide([]) == ("not_listed", None)
 
 
+def test_miss_note_without_model():
+    polo = {"category": "tshirt", "brand": "U.S. POLO ASSN.", "title": "U.S. Polo ASSN. Men Polo Shirt", "tokens": [], "colour": "Olive"}
+    assert "doesn't name a model" in match.miss_note(polo, [])["note"]
+
+
 def test_app_passes_miss_note():
     async def near(client, spec):
         return match.decide([], {"note": "Found this model, but only with 12 GB RAM / 512 GB.", "lead": "Found this model, but only with",

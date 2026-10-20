@@ -194,6 +194,8 @@ def miss_note(spec, cands):
     """Why 'not listed' when the site has the model in other variants, with a link to each:
     {'note': 'Found this model, but only with 12 GB RAM / 256 GB.', 'lead': ..., 'near': [{label, url}], 'more': 0}.
     None if the model itself isn't there."""
+    if not spec["tokens"]:  # "U.S. Polo ASSN. Men Polo Shirt": any olive polo of the brand would fit
+        return {"note": "Amazon doesn't name a model for this product (just brand and colour), so it can't be matched reliably."}
     cat, near = spec["category"], []
     for c in cands:
         if not score(spec, c, variant=False):
