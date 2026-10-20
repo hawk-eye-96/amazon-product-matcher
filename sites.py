@@ -318,6 +318,11 @@ _croma = {}  # category -> (loaded_at, [urls])
 _croma_lock = asyncio.Lock()
 
 
+def croma_product_urls(xml):
+    """Product links from a sitemap. IDs are numbers (/p/303832) or codes (/p/ph120101qn80h_samsung_797, even with spaces)."""
+    return [u.replace(" ", "%20") for u in re.findall(r"<loc>([^<]*/p/[^<]+)</loc>", xml)]
+
+
 async def croma_urls(client, category):
     async with _croma_lock:
         at, urls = _croma.get(category, (0, []))
@@ -325,7 +330,7 @@ async def croma_urls(client, category):
             body = (await get(client, "https://www.croma.com/" + CROMA_SITEMAPS[category], {})).content
             if body[:2] == b"\x1f\x8b":
                 body = gzip.decompress(body)
-            urls = re.findall(r"<loc>([^<]*/p/\d+)</loc>", body.decode("utf-8", "replace"))
+            urls = croma_product_urls(body.decode("utf-8", "replace"))
             if not urls:
                 raise RuntimeError("Croma sitemap came back empty")
             _croma[category] = (time.time(), urls)

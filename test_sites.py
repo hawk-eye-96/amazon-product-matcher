@@ -138,6 +138,17 @@ def test_search_pages():
         pass
 
 
+def test_croma_sitemap_ids():
+    xml = """<url><loc>https://www.croma.com/samsung-galaxy-s24-5g-8gb-ram-128gb-cobalt-violet-/p/303832</loc></url>
+    <url><loc>https://www.croma.com/samsung-qn80h-165-1-cm-65-inch-neo-qled-tv-2026-model-/p/ph120101qn80h_samsung_797</loc></url>
+    <url><loc>https://www.croma.com/lg-evo-ai-292-cm-115-inch-tv/p/ph120101evo ai_lg_205</loc></url>
+    <url><loc>https://www.croma.com/phones-wearables/c/1</loc></url>"""
+    urls = sites.croma_product_urls(xml)
+    assert len(urls) == 3 and urls[2].endswith("/p/ph120101evo%20ai_lg_205")  # category page skipped, space encoded
+    tv = sites.croma_candidate(urls[1], "Samsung")
+    assert tv["screen"] == 65 and "qn80h" in tv["tokens"]
+
+
 def test_tv_and_phone_rules():
     tv = {"category": "tv", "brand": "Samsung", "title": "Samsung TV", "tokens": ["crystal", "ua55u8400fulxl"], "screen": 55}
     c = {"brand": "Samsung", "title": "samsung u8400f", "tokens": ["u8400f"], "screen": 55}
