@@ -89,8 +89,9 @@ document.getElementById("f").addEventListener("submit", async e => {
     if (!r.ok) { s.innerHTML = `<span class="fail">${esc(d.error || "Something went wrong.")}</span>`; return; }
     s.textContent = "";
     const p = d.product;
-    const chips = [CAT[p.category], p.brand, p.ram && p.ram + " GB RAM", p.storage && p.storage + " GB",
-                   p.screen && p.screen + '"', p.category in { sneakers: 1, tshirt: 1 } && p.colour].filter(Boolean);
+    const phone = p.category === "phone";  // the category's matching rule, nothing else (a TV's 8 GB isn't it)
+    const chips = [CAT[p.category], p.brand, phone && p.ram && p.ram + " GB RAM", phone && p.storage && p.storage + " GB",
+                   p.category === "tv" && p.screen && p.screen + '"', p.category in { sneakers: 1, tshirt: 1 } && p.colour].filter(Boolean);
     out.innerHTML = `<div class="product"><div class="label">On Amazon</div>
         <div class="name">${esc(p.title)}</div>
         <div class="chips">${chips.map(c => `<span class="chip">${esc(c)}</span>`).join("")}</div></div>

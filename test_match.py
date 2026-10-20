@@ -13,6 +13,7 @@ def test_tokens():
     assert tokens("Court-Royale-Shoes-Midnight-White") == ["court", "royale"]
     assert tokens("Apple iPhone 15 (128 GB) - Black", drop={"apple"}) == ["iphone", "15"]
     assert tokens("Poco X6 Pro 5G", drop={"poco"}) == ["x6", "pro"]  # 2-char model codes are kept
+    assert tokens("LG 108 cms (43 inches) NU87 Nano 43NU870BPLA", drop={"lg"}) == ["nu87", "nano", "43nu870bpla"]
     assert "plus" not in tokens("Lumio Vision 7 TV with 4K HDR Dolby Vision + Atmos")  # '+' between words isn't a variant
     assert "plus" not in tokens("Samsung TV HDR10+ Smart")
     assert "plus" in tokens("Samsung Galaxy S24+ 5G")

@@ -37,7 +37,7 @@ inch inches cm star stars built voice assistant remote
 """.split())
 
 PHRASES = re.compile(r"\b(ultra hd|full hd|hd ready|quad hd|4k uhd|hdr ?10\+?|dolby (vision|atmos)|off white)\b")
-UNITS = re.compile(r"\b\d+(?:\.\d+)?\s*(?:gb|tb|mb|cm|mm|inch|inches|in|hz|mah|mp|w|k|g)\b|\b(?:19|20)\d\d\b")
+UNITS = re.compile(r"\b\d+(?:\.\d+)?\s*(?:gb|tb|mb|cms?|mm|inch|inches|in|hz|mah|mp|w|k|g)\b|\b(?:19|20)\d\d\b")
 ALIASES = {"lo": "low", "hi": "high"}
 
 
