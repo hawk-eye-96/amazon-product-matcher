@@ -154,12 +154,13 @@ def parse_amazon(html, url):
         # Nike-style article codes in the link ("Court-Royale-Running-749747-107") aren't on other sites' titles.
         slug = re.sub(r"\b\d{5,}(-\d{1,3}){0,2}\b", " ", slug)  # "749747-107" and a size after it: "749747-107-10"
         # ... nor are internal codes or a cut brand ("Converse-CONV-M9160C" for a Chuck Taylor): keep only codes the title shows
-        in_title = set(match.tokens(title))
+        short = re.split(r"[|:]", re.sub(r"\([^)]*\)", " ", title))[0]  # no "(UK Footwear Size System, ..., 7)"
+        in_title = set(match.tokens(short))
         toks = [w for w in match.tokens(fields.get("model name", "") + " " + slug.replace("-", " "), drop=brand_words)
                 if (not match.is_code(w) or w in in_title) and not any(b.startswith(w) for b in brand_words)] \
-            or match.tokens(title, drop=brand_words)
+            or match.tokens(short, drop=brand_words)
         # The link can drop the version ("ASICS-Gel-Excite-Black-Running-Shoes" for Gel-Excite 10): take it from the title.
-        toks += [w for w in match.tokens(title, drop=brand_words) if w.isdigit() and w not in toks]
+        toks += [w for w in match.tokens(short, drop=brand_words) if w.isdigit() and w not in toks]
 
     spec = {
         "url": url, "title": title, "category": category, "brand": brand, "tokens": toks,
