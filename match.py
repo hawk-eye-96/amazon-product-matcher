@@ -134,7 +134,8 @@ def same_code(x, y):
 def same_model(a, c, threshold):
     """Score how well candidate tokens c match Amazon tokens a. 0 = not the same model."""
     A, C = set(a), set(c)
-    if any(len(x) >= 6 and is_code(x) for x in A & C):  # same full model code (UA55U8400FULXL): settled,
+    if any(is_code(x) and (len(x) >= 6 or (len(x) == 5 and x[0].isdigit())) for x in A & C):  # same full model code
+        # (UA55U8400FULXL, or a TV's size-led 55E8S): settled,
         return 1 + len(A & C) / len(A | C)               # whatever marketing words ("Prime Video") the titles add
     if not A or (A & VARIANTS) != (C & VARIANTS):
         return 0

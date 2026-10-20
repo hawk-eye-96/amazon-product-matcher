@@ -58,6 +58,8 @@ def test_same_model():
     assert same_model(lumio, tokens("Lumio Vision 7 Dolby Vision + Atmos Model ID: FTW1-ADSJ"), 0.75)
     assert not same_model(lumio, tokens("Lumio Vision 7 II Gemini Model ID: FTW1-ADSK"), 0.75)  # Vision 7 II
     assert same_model(["crystal", "ua55u8400fulxl"], tokens("Samsung UA55U8400FULXL with Prime Video"), 0.75)  # code settles it
+    assert same_model(["55e8s", "high", "miniled"], tokens("Hisense 55 inch Mini LED Local Dimming Pro 55E8S"), 0.75)
+    assert not same_model(["galaxy", "s24"], tokens("Samsung Galaxy S24 FE 5G"), 0.75)  # short phone code doesn't settle
     royale = ["court", "royale"]
     assert same_model(royale, tokens("NIKE Court Royale Tennis Shoes For Men"), 0.6)
     assert not same_model(royale, tokens("NIKE Court Royale AC SE Tennis Shoes For Women"), 0.6)
