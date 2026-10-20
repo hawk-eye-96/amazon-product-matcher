@@ -8,7 +8,7 @@ COLOURS = {
     "white": "white", "wht": "white", "wte": "white", "snow": "white", "ivory": "white", "offwhite": "white",
     "grey": "grey", "gray": "grey", "gry": "grey", "charcoal": "grey", "ash": "grey", "titanium": "grey",
     "silver": "silver", "metallic": "silver",
-    "blue": "blue", "navy": "blue", "nvy": "blue", "midnight": "blue", "obsidian": "blue", "cobalt": "blue",
+    "blue": "blue", "royal": "blue", "navy": "blue", "nvy": "blue", "midnight": "blue", "obsidian": "blue", "cobalt": "blue",
     "teal": "green", "green": "green", "olive": "green", "mint": "green", "sage": "green", "khaki": "green",
     "red": "red", "maroon": "red", "burgundy": "red", "wine": "red", "crimson": "red", "rosso": "red",
     "pink": "pink", "rose": "pink", "peach": "pink", "coral": "pink",
@@ -60,22 +60,32 @@ def tokens(text, drop=()):
     return out
 
 
+def colour_word(w):
+    """'navy' -> 'blue'; adidas codes too: BROYAL (bright royal), CBLACK (core black), FTWWHT, CONAVY."""
+    if w in COLOURS:
+        return COLOURS[w]
+    if len(w) >= 6:  # codes are short words glued to a prefix; "stan" or "bred" must not become tan / red
+        for cut in (1, 2, 3):
+            if w[cut:] in COLOURS:
+                return COLOURS[w[cut:]]
+    return None
+
+
 def colour_family(text):
     """'Mid Nvy/Wte' -> 'blue', 'Cobalt Violet' -> 'purple'. Primary colour = first part, last colour word in it."""
     if not text:
         return None
     t = text.lower().replace("off white", "offwhite").replace("off-white", "offwhite")
     first = re.split(r"[/,&+|-]| and ", t)[0]  # only the primary: "PUTBEI/LINGRN/BLACK" is beige, "Black-White" black
-    for w in reversed(re.findall(r"[a-z]+", first)):
-        if w in COLOURS:
-            return COLOURS[w]
-    return None
+    words = list(reversed(re.findall(r"[a-z]+", first)))
+    exact = [COLOURS[w] for w in words if w in COLOURS]  # a real colour word beats a decoded code
+    return exact[0] if exact else next((colour_word(w) for w in words if colour_word(w)), None)
 
 
 def colour_set(text):
     """Every colour family named: 'White/Navy' -> {'white', 'blue'}."""
     t = (text or "").lower().replace("off white", "offwhite").replace("off-white", "offwhite")
-    return {COLOURS[w] for w in re.findall(r"[a-z]+", t) if w in COLOURS}  # "-" splits words too
+    return {colour_word(w) for w in re.findall(r"[a-z]+", t) if colour_word(w)}  # "-" splits words too
 
 
 def same_colour(a, b):

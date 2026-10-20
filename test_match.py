@@ -32,6 +32,9 @@ def test_colours():
     assert colour_family("Amber Yellow") == "yellow"
     assert colour_family("Sparkle") is None
     assert colour_family("Black-White") == "black" and colour_family("PUTBEI/LINGRN/BLACK/WARSAN") is None
+    assert colour_family("BROYAL") == "blue" and colour_family("CBLACK/FTWWHT") == "black" and colour_family("CONAVY") == "blue"
+    assert colour_family("Salmon") is None and colour_family("Stan Smith") is None  # chopping ordinary words: no false hits
+    assert colour_family("files shared securely in black") == "black"
 
 
 def test_specs():
