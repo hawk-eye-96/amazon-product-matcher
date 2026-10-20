@@ -59,6 +59,13 @@ def test_amazon_sneaker_drops_article_code():
     assert s["tokens"] == ["court", "royale"]
 
 
+def test_amazon_phone_bad_storage_field():
+    s = sites.parse_amazon(amazon_page("Motorola Edge 60 Fusion (Amazonite, 12, GB, 256)", "Smartphones",
+                                       '<tr><td>Brand</td><td>Motorola</td></tr><tr><td>RAM Memory Installed Size</td><td>12 GB</td></tr>'
+                                       '<tr><td>Memory Storage Capacity</td><td>12 GB</td></tr>'), "u")
+    assert (s["ram"], s["storage"], s["tokens"]) == (12, 256, ["edge", "60", "fusion"])
+
+
 def test_amazon_phone_title_with_colon():
     s = sites.parse_amazon(amazon_page("Apple iPhone 17e 256 GB: 15.40 cm (6.1″) Super Retina XDR Display, A19 Chip", "Smartphones",
                                        '<tr><td>Brand</td><td>Apple</td></tr>'), "u")

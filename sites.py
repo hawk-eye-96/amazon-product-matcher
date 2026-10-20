@@ -111,7 +111,10 @@ def parse_amazon(html, url):
         or match.gb((re.search(r"\d+\s*GB\s*RAM", title, re.I) or [""])[0]) or (sizes[0] if len(sizes) > 1 else None)
     storage = match.gb(fields.get("memory storage capacity") or fields.get("internal storage")) \
         or (sizes[-1] if sizes else None)
-    if ram and storage and (ram >= storage or ram > 32):  # Amazon sometimes fills RAM with the storage size
+    if category == "phone" and (not storage or storage < 32):  # Amazon sometimes fills storage with the RAM size
+        std = re.findall(r"\b(32|64|128|256|512)\b|\b(1)\s*TB\b", title, re.I)  # "(Amazonite, 12, GB, 256)"
+        storage = max((1024 if t else int(g)) for g, t in std) if std else storage
+    if ram and (ram > 32 or (storage and ram >= storage)):  # ... and RAM with the storage size
         ram = None
     sm = re.search(r"(\d+(?:\.\d+)?)\s*inch", fields.get("screen size", "") + " " + title, re.I)
     screen = float(sm.group(1)) if sm else None
