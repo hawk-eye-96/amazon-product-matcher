@@ -82,6 +82,13 @@ def test_amazon_brand_codes_and_tv_model_name():
     assert match.colour_family("WHITE BLACK4") == "white" and match.colour_family("Sky Blue") == "blue"
 
 
+def test_amazon_one_word_tee_has_no_model():
+    s = sites.parse_amazon(amazon_page("Bewakoof X DC Batman Men's Cotton Graphic Print Oversized Fit Half Sleeve Round Neck T-Shirt | Casual Wear",
+                                       "Clothing & Accessories › Men › T-shirts, Polos & Shirts › T-Shirts", '<tr><td>Brand</td><td>Bewakoof</td></tr>',
+                                       canonical="https://www.amazon.in/Bewakoof-Mens-Cotton-Oversized-T-Shirt/dp/B0DZNYQCY5"), "u")
+    assert s["tokens"] == []
+
+
 def test_amazon_misfiled_tshirt():
     s = sites.parse_amazon(amazon_page("Levi's Men's Pure Cotton Slim Fit Polo T-Shirt",
                                        "Clothing & Accessories › Men › Innerwear › Thermals › Bottoms"), "u")

@@ -162,6 +162,8 @@ def parse_amazon(html, url):
         full = match.tokens(short, drop=brand_words)
         if set(toks) < set(full):  # the link cut the name short ("COURTSWIFT-Athleisure" for COURTSWIFT Stamina)
             toks = full
+        if category == "tshirt" and len(toks) < 2:
+            toks = []  # one word ("Batman", "RCB") can't tell a brand's tee designs apart: treat as no model
         # The link can drop the version ("ASICS-Gel-Excite-Black-Running-Shoes" for Gel-Excite 10): take it from the title.
         toks += [w for w in match.tokens(short, drop=brand_words) if w.isdigit() and w not in toks]
 
