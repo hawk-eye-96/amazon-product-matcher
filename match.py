@@ -30,7 +30,8 @@ men mens man women womens woman unisex boys girls kids boy girl adult
 shoe shoes sneaker sneakers casual sports sport running tennis walking lifestyle training trainers
 t shirt shirts tshirt tshirts tee tees polo polos jersey jerseys top
 fit regular slim relaxed oversized cotton polyester leather suede mesh synthetic knit
-round crew neck collar half full short sleeve sleeves solid printed graphic logo
+round crew neck collar half full short sleeve sleeves solid printed print graphic logo
+comfortable stylish premium lightweight quick dry athleisure gym everyday wear blend band button
 smart smartphone mobile phone cellphone ai dual sim camera processor battery display amoled storage ram rom
 tv television led qled oled uhd hd hdr android google tizen webos smartvision vision
 inch inches cm star stars built voice assistant remote
