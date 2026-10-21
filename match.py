@@ -8,14 +8,14 @@ COLOURS = {
     "white": "white", "wht": "white", "wte": "white", "snow": "white", "ivory": "white", "offwhite": "white",
     "grey": "grey", "gray": "grey", "gry": "grey", "charcoal": "grey", "ash": "grey", "titanium": "grey",
     "silver": "silver", "metallic": "silver",
-    "blue": "blue", "royal": "blue", "navy": "blue", "nvy": "blue", "midnight": "blue", "obsidian": "blue", "cobalt": "blue",
-    "teal": "green", "green": "green", "olive": "green", "mint": "green", "sage": "green", "khaki": "green",
+    "blue": "blue", "blu": "blue", "royal": "blue", "navy": "blue", "nvy": "blue", "midnight": "blue", "obsidian": "blue", "cobalt": "blue",
+    "teal": "green", "green": "green", "grn": "green", "olive": "green", "mint": "green", "sage": "green", "khaki": "green",
     "red": "red", "maroon": "red", "burgundy": "red", "wine": "red", "crimson": "red", "rosso": "red",
     "pink": "pink", "rose": "pink", "peach": "pink", "coral": "pink",
     "purple": "purple", "violet": "purple", "lavender": "purple", "lilac": "purple", "mauve": "purple",
     "yellow": "yellow", "amber": "yellow", "mustard": "yellow", "lemon": "yellow",
     "orange": "orange", "rust": "orange",
-    "brown": "brown", "tan": "brown", "chocolate": "brown", "coffee": "brown",
+    "brown": "brown", "brn": "brown", "tan": "brown", "chocolate": "brown", "coffee": "brown",
     "beige": "beige", "cream": "beige", "sand": "beige", "taupe": "beige",
     "gold": "gold", "golden": "gold",
     "multicolor": "multi", "multicolour": "multi", "multi": "multi",
@@ -31,7 +31,7 @@ shoe shoes sneaker sneakers casual sports sport running tennis walking lifestyle
 t shirt shirts tshirt tshirts tee tees polo polos jersey jerseys top
 fit regular slim relaxed oversized cotton polyester leather suede mesh synthetic knit
 round crew neck collar half full short sleeve sleeves solid printed print graphic logo
-pure comfortable stylish premium lightweight quick dry athleisure gym everyday wear blend band button
+pure comfortable stylish premium lightweight quick dry athleisure gym everyday wear blend band button lace up laceup ankle athletic
 smart smartphone mobile phone cellphone ai dual sim camera processor battery display amoled storage ram rom
 tv television led qled oled uhd hd hdr android google tizen webos smartvision vision
 inch inches cm star stars built voice assistant remote
@@ -39,13 +39,17 @@ inch inches cm star stars built voice assistant remote
 
 PHRASES = re.compile(r"\b(ultra hd|full hd|hd ready|quad hd|4k uhd|hdr ?10\+?|dolby (vision|atmos)|off white)\b")
 UNITS = re.compile(r"\b\d+(?:\.\d+)?\s*(?:gb|tb|mb|cms?|mm|inch|inches|in|hz|mah|mp|w|k|g)\b|\b(?:19|20)\d\d\b")
-ALIASES = {"lo": "low", "hi": "high"}
+NOT_SNEAKER_TITLE = re.compile(r"\b(formal|derby|derbys|oxfords?|loafers?|sandals?|slippers?|boots?)\b")
+SHIRT = re.compile(r"\bshirts?\b")
+TEE = re.compile(r"\bt[- ]?shirts?\b|\btees?\b|\bpolos?\b|\bjerseys?\b")
+ALIASES = {"lo": "low", "hi": "high", "ii": "2", "iii": "3", "iv": "4"}  # Lyte II is a version, like Royale 2
 
 
 def tokens(text, drop=()):
     """Model-identifying words, in order: 'Samsung Galaxy S24 5G AI Smartphone' -> ['galaxy', 's24']."""
     t = PHRASES.sub(" ", text.lower())  # before '+': "HDR10+" must not leave a "plus"
     t = re.sub(r"\b(\w*[a-z]\w*)\+", r"\1 plus ", t).replace("'s", " ")  # "S24+" is a variant; "Vision + Atmos", "150+" aren't
+    t = re.sub(r"\b(pro|max|ultra|note) \+", r"\1 plus ", t)  # Flipkart writes "Pro + 5G"
     t = re.sub(r"\b([a-z0-9]{3,})-([a-z0-9]{3,})\b",  # model code "FTW1-ADSJ" stays one token
                lambda m: m[1] + m[2] if is_code(m[1]) or is_code(m[2]) else m[0], t)
     t = re.sub(r"[^a-z0-9.]+", " ", t)
@@ -99,7 +103,16 @@ def same_colour(a, b):
     """Primary colours equal, or the same two-tone in another order ('Mid Nvy/Wte' vs 'White/Navy').
     A lone 'White' against 'Navy/White' is still rejected: it may just be the all-white shoe."""
     fa, fb = colour_family(a), colour_family(b)
-    return bool(fa) and (fa == fb or (len(colour_set(a)) > 1 and colour_set(a) == colour_set(b)))
+    sa, sb = colour_set(a), colour_set(b)
+    if len(sa) > 1 and len(sb) > 1 and sa - NEUTRAL != sb - NEUTRAL:
+        return False  # both name the colourway: Campus OG-27 WHT/D.GRN isn't the WHT/BLK one
+    return bool(fa) and (fa == fb or (len(sa) > 1 and sa == sb))
+
+
+def title_colours(title):
+    """Colours a listing's name spells out ('OG-27 White and Black PU Sneakers' -> 'White / Black'), if 2+."""
+    words = [w for w in re.findall(r"[a-z]+", (title or "").lower()) if w in COLOURS]
+    return " / ".join(dict.fromkeys(w.title() for w in words)) if len({COLOURS[w] for w in words}) > 1 else None
 
 
 def years(text):
@@ -145,6 +158,8 @@ def same_code(x, y):
         return True
     if len(short) < 4 or short not in long_:
         return False
+    if re.search(r"\d", long_[long_.index(short) + len(short):]):  # Sony K-55S25BM2 is the next generation of K-55S25
+        return False
     return not (long_.startswith(short) and len(long_) - len(short) <= 2)
 
 
@@ -181,8 +196,12 @@ def score(spec, cand, variant=True):
     cat = spec["category"]
     if cat == "tv" and not any(is_code(t) for t in spec["tokens"]):  # "Samsung Neo QLED 65" fits a range: don't guess
         return 0
+    if cat == "sneakers" and NOT_SNEAKER_TITLE.search(cand["title"].lower()):
+        return 0  # Myntra files a Bata derby under the same "lace-ups" as a sneaker
     if cat in ("sneakers", "tshirt") and any(t.isdigit() and t not in spec["tokens"] for t in cand["tokens"]):
         return 0  # Court Royale 2, pack of 2
+    if cat == "tshirt" and SHIRT.search(cand["title"].lower()) and not TEE.search(cand["title"].lower()):
+        return 0  # Myntra's "Classic Slim Fit Textured Casual Shirt" isn't a polo
     if cat == "tshirt" and ("oversize" in spec["title"].lower()) != ("oversize" in cand["title"].lower()):
         return 0  # an oversized fit is a different product from the regular one with the same print
     if variant and not same_variant(spec, cand):

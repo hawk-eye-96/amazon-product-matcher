@@ -18,6 +18,7 @@ def test_tokens():
     assert "plus" not in tokens("Lumio Vision 7 TV with 4K HDR Dolby Vision + Atmos")  # '+' between words isn't a variant
     assert "plus" not in tokens("Samsung TV HDR10+ Smart")
     assert "plus" in tokens("Samsung Galaxy S24+ 5G")
+    assert tokens("REDMI Note 15 Pro + 5G (Coffee Mocha, 256 GB)") == tokens("REDMI Note 15 Pro+ 5G (Coffee Mocha, 8GB + 256GB)")
     assert "plus" not in tokens("Samsung Neo QLED TV with 150+ Free Channels")
     assert tokens("Lumio Vision 7 2026 TV FTW1-ADSJ", drop={"lumio"}) == ["7", "ftw1adsj"]  # hyphenated code kept whole
 
@@ -59,6 +60,9 @@ def test_same_model():
     assert same_model(["smartchoice", "mini", "65q6c"], tokens("TCL 65Q6C 164 cm (65 inch) Mini LED Google TV"), 0.75)
     assert not same_model(["smartchoice", "mini", "65q6c"], tokens("TCL 65Q6CS 164 cm (65 inch) Mini LED Google TV"), 0.75)
     assert same_model(["crystal", "ua55u8400f"], tokens("Samsung Crystal UA55U8400FULXL"), 0.75)  # region tail ULXL: same
+    assert not same_model(tokens("ASICS Mens Gel-Quantum Lyte II Sneakers"), tokens("Asics GEL-QUANTUM KEI Sneakers For Unisex"), 0.6)
+    assert tokens("Bata Men's Lace-up Sneaker", drop={"bata"}) == []  # no model named
+    assert not same_model(tokens("Sony BRAVIA 2M2 Series K-55S25BM2"), tokens("SONY 2 138.8 cm (55 inch) K-55S25"), 0.75)  # M2 = next gen
     lumio = ["7", "ftw1adsj"]
     assert same_model(lumio, tokens("Lumio Vision 7 Dolby Vision + Atmos Model ID: FTW1-ADSJ"), 0.75)
     assert not same_model(lumio, tokens("Lumio Vision 7 II Gemini Model ID: FTW1-ADSK"), 0.75)  # Vision 7 II
@@ -106,6 +110,7 @@ def test_score_filters():
     assert not score(shoe, fk | {"colour": "White"})
     assert not score(shoe, fk | {"gender": "women"})
     assert score(shoe, fk | {"gender": "unisex"})
+    assert not score(shoe, fk | {"title": "NIKE Court Royale Formal Derby Shoes"})  # not a sneaker
     assert not score(shoe, fk | {"title": "NIKE court royale 2 next nature", "tokens": ["court", "royale", "2", "next", "nature"]})
 
     polo = {"category": "tshirt", "brand": "Puma", "title": "Puma Cotton RCB 2026 Men's Striper Polo",
@@ -115,13 +120,18 @@ def test_score_filters():
     assert score(polo, my)
     assert not score(polo, my | {"title": "Puma x RCB 2025 Men's Striper Polo"})
     assert score(polo, my | {"title": "Puma x RCB Men's Striper Polo"})  # no year on one side: fine
+    assert not score(polo, my | {"title": "Puma x RCB Men's Striper Casual Shirt"})  # a shirt isn't a polo
+    assert score(polo, my | {"title": "Puma x RCB Men Striper T-shirt"})
 
 
 def test_two_tone():
     assert same_colour("Mid Nvy/Wte", "White/Navy")      # same shoe, colours listed the other way round
     assert same_colour("Navy", "Navy Blue")
     assert not same_colour("Mid Nvy/Wte", "White")       # could be the all-white shoe
-    assert same_colour("Black/Red", "Black/White")         # primary colour decides, as before
+    assert same_colour("Black/Red", "Black")               # one side names only the main colour: it decides
+    assert not same_colour("Black/Red", "Black/White")     # both name the colourway: the accent must match too
+    assert not same_colour("WHT/D.GRN", "White / Black")    # Campus OG-27 green vs the black-and-red pair
+    assert same_colour("CBLACK/FTWWHT/FTWWHT", "Black / White")
     assert not same_colour("Red/Black", "Black/White")
     assert not same_colour(None, "Black")
 

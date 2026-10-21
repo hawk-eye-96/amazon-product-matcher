@@ -87,6 +87,10 @@ def test_amazon_one_word_tee_has_no_model():
                                        "Clothing & Accessories › Men › T-shirts, Polos & Shirts › T-Shirts", '<tr><td>Brand</td><td>Bewakoof</td></tr>',
                                        canonical="https://www.amazon.in/Bewakoof-Mens-Cotton-Oversized-T-Shirt/dp/B0DZNYQCY5"), "u")
     assert s["tokens"] == []
+    s = sites.parse_amazon(amazon_page("Converse Sport Casual Black Low Top Sneaker", "Shoes › Men's Shoes › Sneakers",
+                                       '<tr><td>Brand</td><td>Converse</td></tr>',
+                                       canonical="https://www.amazon.in/Converse-Sport-Casual-Black-Sneaker/dp/B0DHXZP86J"), "u")
+    assert s["tokens"] == []  # "low top" is a cut, not a model
 
 
 def test_amazon_misfiled_tshirt():

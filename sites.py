@@ -164,6 +164,8 @@ def parse_amazon(html, url):
             toks = full
         if category == "tshirt" and len(toks) < 2:
             toks = []  # one word ("Batman", "RCB") can't tell a brand's tee designs apart: treat as no model
+        if category == "sneakers" and not set(toks) - {"low", "mid", "high"}:
+            toks = []  # "Converse Sport Casual Low Top": a cut isn't a model
         # The link can drop the version ("ASICS-Gel-Excite-Black-Running-Shoes" for Gel-Excite 10): take it from the title.
         toks += [w for w in match.tokens(short, drop=brand_words) if w.isdigit() and w not in toks]
 
@@ -319,7 +321,8 @@ def parse_myntra(html, brand):
         "title": p.get("productName", ""), "brand": p.get("brand"),
         "url": "https://www.myntra.com/" + p.get("landingPageUrl", ""),
         "tokens": match.tokens(p.get("productName", ""), drop={match.norm(brand)}),
-        "colour": p.get("primaryColour"), "colour_family": match.colour_family(p.get("primaryColour")),
+        "colour": match.title_colours(p.get("productName")) or p.get("primaryColour"),
+        "colour_family": match.colour_family(match.title_colours(p.get("productName")) or p.get("primaryColour")),
         "gender": match.gender(p.get("gender")),
         "stock": "in" if any(i.get("available") for i in p.get("inventoryInfo") or []) else "out",
         "price": p.get("price"),
